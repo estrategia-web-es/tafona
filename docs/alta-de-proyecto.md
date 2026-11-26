@@ -41,6 +41,16 @@ quitar esas tres líneas). Nada más del proceso vive en el proyecto.
 Una issue pequeña y real, la etiqueta `claude`, y mirar que salga la PR, el
 veredicto de la revisora y la tarjeta en el tablero.
 
+## Repos públicos (el plugin, la propia Tafona)
+
+- Un repo **público** no puede usar flujos de uno **privado**: por eso Tafona
+  se hizo pública el 26-11-2026 (el plugin falló con «workflow file issue» y
+  cero trabajos mientras Tafona era privada).
+- En un repo público cualquiera puede comentar `@claude`. La acción de Claude
+  comprueba que quien lo pide tenga **permiso de escritura** en el repo; un
+  extraño no lo arranca. Las etiquetas solo las ponen quienes escriben en el
+  repo. Los secretos no llegan a las PR que vienen de forks.
+
 ## Trampas que ya mordieron
 
 - Un fichero de proceso **copiado** en un proyecto se separa del de Tafona:
