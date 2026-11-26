@@ -82,7 +82,11 @@ jobs:
           LLAVE: ${{ secrets.PROD_LECTURA_KEY }}
           PROD_HOST: ${{ inputs.prod_host }}
           PROD_USER: ${{ inputs.prod_user }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          for e in "claude|d97757|Tafona: hazlo" "decide|d93f0b|Tafona: decide una persona (la asignada)" "aplicado|1d76db|Tafona: en producción, verifícalo" "tafona|5319e7|Tafona: un fallo del proceso, no del proyecto" "codigo|c5def5|Tafona: se arregla en el código" "contenido|c5def5|Tafona: se arregla en el contenido" "configuracion|c5def5|Tafona: se arregla en la configuración"; do
+            IFS='|' read -r n c d <<< "$e"; gh label create "$n" -R "$GITHUB_REPOSITORY" --color "$c" --description "$d" --force >/dev/null
+          done
           mkdir -p ~/.ssh && umask 077
           printf '%s\n' "$LLAVE" > ~/.ssh/prod
           printf 'Host prod\n  HostName %s\n  User %s\n  Port 18765\n  IdentityFile ~/.ssh/prod\n  IdentitiesOnly yes\n  StrictHostKeyChecking accept-new\n  BatchMode yes\n' "$PROD_HOST" "$PROD_USER" > ~/.ssh/config
@@ -150,6 +154,9 @@ jobs:
           - Las preguntas van en la PR, nunca en la issue si ya hay PR; en la issue deja «La decisión está en la PR #x».
           - Si la causa está fuera del código (ajustes de un plugin, opciones, metadatos), la PR lleva un script WP-CLI en tools/: copia previa en ~/copias (y para si falla), `--seco`, cómo se deshace, el valor por la entrada estándar (`printf '%s' "$v" | wp option patch update …`), la constante de WPML ICL_STRING_TRANSLATION_COMPLETE (no ICL_TL_COMPLETE) y `wp sg purge` al final.
           - Sigue el CLAUDE.md del repo. NUNCA fusiones, despliegues ni ejecutes nada que escriba en producción.
+          - UN FALLO SE CONVIERTE EN ISSUE, no se queda en tu comentario. Si algo te impide hacer bien el trabajo, abre una issue (gh issue create) SIN la etiqueta claude, para que una persona decida si se hace, y di su número en tu comentario. Antes, mira con `gh issue list --label tafona --state open` que no exista ya:
+            · si falla el PROCESO (un permiso denegado, una herramienta que no funciona, un dato que no puedes leer, como una imagen adjunta): etiqueta `tafona`, título «Tafona: …», con la orden exacta y el error;
+            · si falla el PROYECTO (pruebas rotas, un script que no corre en Linux): sin etiqueta, título con lo que falla y cómo se reproduce.
           FIN
           echo
           case "$TAREA" in
@@ -169,7 +176,7 @@ jobs:
           track_progress: true
           prompt: ${{ steps.prompt.outputs.texto }}
           claude_args: |
-            --allowedTools "Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr edit:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(gh issue close:*),Bash(php -l:*),Bash(bash -n:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(ssh prod:*),Bash(.tafona/ver.sh:*),Bash(npm ci:*),Bash(npm test:*),WebSearch,WebFetch"
+            --allowedTools "Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr edit:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(gh issue close:*),Bash(php -l:*),Bash(bash -n:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(ssh prod:*),Bash(.tafona/ver.sh:*),Bash(npm ci:*),Bash(npm test:*),Bash(node --check:*),Bash(gh issue create:*),Bash(gh issue list:*),WebSearch,WebFetch"
             --max-turns 80
 
       # The reviewer, on the PR this run opened or updated. A PR made with

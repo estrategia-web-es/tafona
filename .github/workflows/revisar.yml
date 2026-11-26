@@ -59,6 +59,7 @@ jobs:
           ssh prod wp core version
           gh label create rutina -R "$GITHUB_REPOSITORY" --color 0e8a16 --description "Tafona: sin nada que decidir" --force
           gh label create decide -R "$GITHUB_REPOSITORY" --color d93f0b --description "Tafona: decide una persona (la asignada)" --force
+          gh label create tafona -R "$GITHUB_REPOSITORY" --color 5319e7 --description "Tafona: un fallo del proceso, no del proyecto" --force
 
       - uses: anthropics/claude-code-action@v1
         with:
@@ -90,7 +91,9 @@ jobs:
 
             4. VEREDICTO: un comentario en la PR (gh pr comment) que EMPIEZA por «RUTINA» o por «DECIDE @persona», con UNA pregunta concreta si es DECIDE, y una lista corta de lo comprobado y lo no comprobado. Después: gh pr edit ${{ inputs.pr }} --add-label rutina, o --add-label decide --add-assignee <persona>. Si la PR ya tenía la etiqueta contraria, quítala.
 
+            5. UN FALLO SE CONVIERTE EN ISSUE. Si algo te impide comprobar (un permiso denegado, una herramienta que no funciona, un dato que no puedes leer), abre una issue (gh issue create) con la etiqueta `tafona` y el título «Tafona: …», con la orden exacta y el error, SIN la etiqueta claude; si falla el proyecto (pruebas rotas), una issue sin etiqueta. Mira antes con `gh issue list --label tafona --state open` que no exista ya, y di su número en tu veredicto.
+
             MODO SOMBRA (desde el 26-11-2026): no apruebas ni fusionas nada.
           claude_args: |
-            --allowedTools "Read,Glob,Grep,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr edit:*),Bash(gh issue view:*),Bash(php -l:*),Bash(bash -n:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(ssh prod:*),WebSearch"
+            --allowedTools "Read,Glob,Grep,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr edit:*),Bash(gh issue view:*),Bash(php -l:*),Bash(bash -n:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(ssh prod:*),Bash(node --check:*),Bash(gh issue create:*),Bash(gh issue list:*),WebSearch"
             --max-turns 40
