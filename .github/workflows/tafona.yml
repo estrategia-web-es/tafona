@@ -1,0 +1,17 @@
+# Tafona works on itself: an issue here labelled «claude» (a process failure
+# that a run opened, or an improvement) becomes a PR to Tafona. No site, so
+# no prod_host and no read-only key. The reviewer does not run here yet: it
+# reviews site changes against production, and this repo has none.
+name: Tafona
+
+on:
+  issues:
+    types: [opened, labeled]
+  issue_comment:
+    types: [created]
+
+jobs:
+  trabajar:
+    permissions: { contents: write, pull-requests: write, issues: write, id-token: write, actions: write }
+    uses: ./.github/workflows/trabajar.yml
+    secrets: inherit

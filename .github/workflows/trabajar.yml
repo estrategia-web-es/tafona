@@ -25,13 +25,14 @@ name: Tafona · trabajar
 on:
   workflow_call:
     inputs:
-      prod_host: { type: string, required: true }
-      prod_user: { type: string, required: true }
-      web: { type: string, required: true, description: "https://… of the site" }
+      # Empty for a repo with no site (Tafona itself, a tool): no «ssh prod».
+      prod_host: { type: string, default: "" }
+      prod_user: { type: string, default: "" }
+      web: { type: string, default: "", description: "https://… of the site" }
       deciden: { type: string, default: "dpereztomas SoporteEstrategiaWeb" }
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: { required: true }
-      PROD_LECTURA_KEY: { required: true }
+      PROD_LECTURA_KEY: { required: false }
 
 permissions:
   contents: write
@@ -87,10 +88,12 @@ jobs:
           for e in "claude|d97757|Tafona: hazlo" "decide|d93f0b|Tafona: decide una persona (la asignada)" "aplicado|1d76db|Tafona: en producción, verifícalo" "tafona|5319e7|Tafona: un fallo del proceso, no del proyecto" "codigo|c5def5|Tafona: se arregla en el código" "contenido|c5def5|Tafona: se arregla en el contenido" "configuracion|c5def5|Tafona: se arregla en la configuración"; do
             IFS='|' read -r n c d <<< "$e"; gh label create "$n" -R "$GITHUB_REPOSITORY" --color "$c" --description "$d" --force >/dev/null
           done
-          mkdir -p ~/.ssh && umask 077
-          printf '%s\n' "$LLAVE" > ~/.ssh/prod
-          printf 'Host prod\n  HostName %s\n  User %s\n  Port 18765\n  IdentityFile ~/.ssh/prod\n  IdentitiesOnly yes\n  StrictHostKeyChecking accept-new\n  BatchMode yes\n' "$PROD_HOST" "$PROD_USER" > ~/.ssh/config
-          ssh prod wp core version
+          if [ -n "$PROD_HOST" ]; then
+            mkdir -p ~/.ssh && umask 077
+            printf '%s\n' "$LLAVE" > ~/.ssh/prod
+            printf 'Host prod\n  HostName %s\n  User %s\n  Port 18765\n  IdentityFile ~/.ssh/prod\n  IdentitiesOnly yes\n  StrictHostKeyChecking accept-new\n  BatchMode yes\n' "$PROD_HOST" "$PROD_USER" > ~/.ssh/config
+            ssh prod wp core version
+          else echo "sin web: no hay ssh prod"; fi
           umask 022
           mkdir -p .tafona
           cat > .tafona/ver.mjs <<'FIN'
