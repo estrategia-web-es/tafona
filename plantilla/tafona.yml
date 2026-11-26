@@ -1,0 +1,44 @@
+# Tafona in this project: every change goes through the process
+# (https://github.com/estrategia-web-es/tafona). Copy this file to
+# .github/workflows/tafona.yml of the project and fill in the three values
+# under «with». Nothing else of the process lives in the project.
+#
+# The project also needs two secrets: CLAUDE_CODE_OAUTH_TOKEN (David's
+# Claude subscription) and PROD_LECTURA_KEY (the read-only key of its server,
+# see servidor/solo-lectura.sh in auditoria-tool).
+name: Tafona
+
+on:
+  issues:
+    types: [opened, labeled]
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR que revisar"
+        required: true
+
+jobs:
+  trabajar:
+    if: github.event_name == 'issues' || github.event_name == 'issue_comment'
+    # A called workflow can never have MORE permissions than its caller gives.
+    permissions: { contents: write, pull-requests: write, issues: write, id-token: write, actions: write }
+    uses: estrategia-web-es/tafona/.github/workflows/trabajar.yml@main
+    with:
+      prod_host: CAMBIAR          # p. ej. c115601.sgvps.net
+      prod_user: CAMBIAR          # el usuario SSH de la cuenta de SiteGround
+      web: https://CAMBIAR/
+    secrets: inherit
+
+  revisar:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && !github.event.pull_request.draft && github.event.pull_request.user.type != 'Bot')
+    permissions: { contents: read, pull-requests: write, issues: write, id-token: write }
+    uses: estrategia-web-es/tafona/.github/workflows/revisar.yml@main
+    with:
+      pr: ${{ inputs.pr || format('{0}', github.event.pull_request.number) }}
+      prod_host: CAMBIAR
+      prod_user: CAMBIAR
+    secrets: inherit

@@ -43,11 +43,29 @@ El tablero es de Tafona: https://github.com/orgs/estrategia-web-es/projects/1
 
 Contestar en la issue **es** la decisión: el proceso la retoma solo.
 
+## Qué hay aquí
+
+- [.github/workflows/trabajar.yml](.github/workflows/trabajar.yml): clasificar,
+  hacer la PR, retomar cuando la persona contesta, verificar. Lleva dentro las
+  reglas fijas de Claude y el visor de páginas.
+- [.github/workflows/revisar.yml](.github/workflows/revisar.yml): la revisora,
+  con el criterio dentro. Asigna a quien decide.
+- [plantilla/tafona.yml](plantilla/tafona.yml): el único fichero que lleva un
+  proyecto.
+
+**Las etiquetas:** `claude` (hazlo), `decide` (decide la persona asignada),
+`rutina` (la revisora no ve nada que decidir), `aplicado` (está en
+producción: verifícalo), y las de tipo `codigo`, `contenido`, `configuracion`.
+
+**Contestar es decidir:** si quien está asignado comenta en algo con
+`decide`, Tafona lo retoma sin `@claude`. `@claude` sigue valiendo para pedir
+cualquier otra cosa.
+
 ## Estado
 
-Se está montando. Hoy las piezas viven repartidas (`auditoria-tool`,
-`gastronomicament-cat`, `estrategiaweb-es`) y se van moviendo aquí. Lo que
-falta, en orden, está en [PENDIENTES.md](PENDIENTES.md).
+Primera versión (26-11-2026): trabajar y revisar. Aplicar sigue siendo
+manual; la bandeja de clasificar y la verificación de la auditoría, en
+[PENDIENTES.md](PENDIENTES.md).
 
 ## Cómo se mantiene
 

@@ -1,0 +1,183 @@
+# TAFONA · trabajar — the stages Claude does in a project's repo.
+#
+# Called from each project's .github/workflows/tafona.yml (plantilla/tafona.yml).
+# What it does depends on what happened (step «Qué toca»):
+#
+#   issue opened, or labelled «claude»   → CLASSIFY and, if nothing needs deciding first, make the PR
+#   a person who decides comments on an item labelled «decide»  → RESUME with the answer
+#   a comment that mentions @claude      → do what the comment asks
+#   issue labelled «aplicado»            → VERIFY against the live site, close or send back
+#
+# The standing instructions (INSTRUCCIONES below) go to Claude every time:
+# they are what used to live only in the audit's issues.
+#
+# How to maintain:
+#   - Everything Claude needs travels INSIDE this file (instructions, the page
+#     viewer): Tafona is private, and a project's token cannot read its files.
+#   - Who decides: input «deciden» (GitHub logins). Today David and Juan.
+#   - A new stage or rule: here, once; every project gets it on its next run.
+#   - The trap: a label or comment made with GITHUB_TOKEN never starts a
+#     workflow, so a stage that must follow another runs in the same job, or
+#     is launched with a dispatch (the reviewer, below).
+name: Tafona · trabajar
+
+on:
+  workflow_call:
+    inputs:
+      prod_host: { type: string, required: true }
+      prod_user: { type: string, required: true }
+      web: { type: string, required: true, description: "https://… of the site" }
+      deciden: { type: string, default: "dpereztomas SoporteEstrategiaWeb" }
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: { required: true }
+      PROD_LECTURA_KEY: { required: true }
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: write
+
+jobs:
+  trabajar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Qué toca
+        id: toca
+        env:
+          EVENTO: ${{ github.event_name }}
+          ACCION: ${{ github.event.action }}
+          ETIQUETA: ${{ github.event.label.name }}
+          AUTOR: ${{ github.event.comment.user.login || github.event.issue.user.login }}
+          ES_BOT: ${{ (github.event.comment.user.type || github.event.issue.user.type) == 'Bot' }}
+          CUERPO: ${{ github.event.comment.body }}
+          ETIQUETAS: ${{ join(github.event.issue.labels.*.name, ' ') }}
+          DECIDEN: ${{ inputs.deciden }}
+          N: ${{ github.event.issue.number }}
+        run: |
+          t=""
+          if [ "$EVENTO" = issues ] && [ "$ACCION" = opened ] && [ "$ES_BOT" != true ]; then t=arreglar
+          elif [ "$EVENTO" = issues ] && [ "$ACCION" = labeled ] && [ "$ETIQUETA" = claude ]; then t=arreglar
+          elif [ "$EVENTO" = issues ] && [ "$ACCION" = labeled ] && [ "$ETIQUETA" = aplicado ]; then t=verificar
+          elif [ "$EVENTO" = issue_comment ] && [ "$ES_BOT" != true ]; then
+            if grep -qi '@claude' <<< "$CUERPO"; then t=comentario
+            elif grep -qw -- "$AUTOR" <<< "$DECIDEN" && grep -qwE 'decide|decide-david' <<< "$ETIQUETAS"; then t=retomar
+            fi
+          fi
+          echo "tarea=$t" >> "$GITHUB_OUTPUT"
+          echo "Qué toca en #$N: ${t:-nada}"
+
+      - uses: actions/checkout@v4
+        if: steps.toca.outputs.tarea != ''
+        with: { fetch-depth: 1 }
+
+      - name: Herramientas (ssh prod y el visor)
+        if: steps.toca.outputs.tarea != ''
+        env:
+          LLAVE: ${{ secrets.PROD_LECTURA_KEY }}
+          PROD_HOST: ${{ inputs.prod_host }}
+          PROD_USER: ${{ inputs.prod_user }}
+        run: |
+          mkdir -p ~/.ssh && umask 077
+          printf '%s\n' "$LLAVE" > ~/.ssh/prod
+          printf 'Host prod\n  HostName %s\n  User %s\n  Port 18765\n  IdentityFile ~/.ssh/prod\n  IdentitiesOnly yes\n  StrictHostKeyChecking accept-new\n  BatchMode yes\n' "$PROD_HOST" "$PROD_USER" > ~/.ssh/config
+          ssh prod wp core version
+          umask 022
+          mkdir -p .tafona
+          cat > .tafona/ver.mjs <<'FIN'
+          // The page as a visitor sees it: Playwright's container passes the anti-bot
+          // challenge where curl and WebFetch get a 202 (measured 26-11-2026).
+          import { chromium } from "playwright";
+          import { AxeBuilder } from "@axe-core/playwright";
+          const url = process.argv[2];
+          if (!/^https:\/\/[a-z0-9.-]+\.[a-z]{2,}(\/[^\s]*)?$/i.test(url || "")) { console.error("uso: .tafona/ver.sh https://…"); process.exit(1); }
+          const b = await chromium.launch();
+          const p = await (await b.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
+          const errores = [];
+          p.on("console", (m) => { if (m.type() === "error") errores.push(m.text().slice(0, 160)); });
+          p.on("pageerror", (e) => errores.push("pageerror: " + e.message.slice(0, 160)));
+          const r = await p.goto(url, { waitUntil: "load", timeout: 45000 });
+          await p.waitForTimeout(6000);
+          const meta = (sel, at = "content") => p.locator(sel).first().getAttribute(at, { timeout: 1500 }).catch(() => null);
+          console.log(JSON.stringify({ url: p.url(), status: r?.status(), titulo: await p.title(), descripcion: await meta('meta[name="description"]'), canonical: await meta('link[rel="canonical"]', "href"), h1: (await p.locator("h1").allTextContents()).map((t) => t.trim()).filter(Boolean), og: { titulo: await meta('meta[property="og:title"]'), descripcion: await meta('meta[property="og:description"]'), imagen: await meta('meta[property="og:image"]') } }, null, 1));
+          console.log("errores de consola:", errores.length ? "\n  " + errores.join("\n  ") : "ninguno");
+          const axe = await new AxeBuilder({ page: p }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+          console.log(`accesibilidad (axe, WCAG 2.1 AA): ${axe.violations.length} reglas fallan`);
+          for (const v of axe.violations) console.log(`  ${v.impact} · ${v.id} · ${v.nodes.length} nodos · ${v.help}`);
+          await p.screenshot({ path: "/tmp/captura.png", fullPage: true });
+          console.log("captura: /tmp/captura.png");
+          await b.close();
+          FIN
+          cat > .tafona/ver.sh <<'FIN'
+          #!/bin/bash
+          set -euo pipefail
+          [[ "${1:-}" =~ ^https:// ]] || { echo "uso: .tafona/ver.sh https://…" >&2; exit 1; }
+          cd "$(dirname "$0")"
+          docker run --rm -v "$PWD:/w:ro" -v /tmp:/tmp -w /tmp mcr.microsoft.com/playwright:v1.59.1-noble bash -c \
+            'npm i --silent --no-audit --no-fund --prefix /tmp/pw playwright@1.59.1 @axe-core/playwright@4.10.2 >/dev/null 2>&1 && cp /w/ver.mjs /tmp/pw/ver.mjs && node /tmp/pw/ver.mjs "$1"' _ "$1"
+          FIN
+          chmod +x .tafona/ver.sh
+          printf '.tafona/\n' >> .git/info/exclude   # the tools never end up in a PR
+
+      - name: Las instrucciones y la tarea
+        if: steps.toca.outputs.tarea != ''
+        id: prompt
+        env:
+          TAREA: ${{ steps.toca.outputs.tarea }}
+          N: ${{ github.event.issue.number }}
+          AUTOR: ${{ github.event.comment.user.login || github.event.sender.login }}
+          WEB: ${{ inputs.web }}
+        run: |
+          {
+          echo 'texto<<FIN_PROMPT'
+          cat <<'FIN'
+          Trabajas dentro de TAFONA, el proceso de Estrategia Web: entra una incidencia, se clasifica, tú haces la PR, una persona decide (David o Juan), se aplica y se verifica. Las personas solo revisan UNA vez: la PR.
+
+          REGLAS FIJAS
+          - Herramientas contra la web real (curl y WebFetch contra nuestras webs reciben el desafío del antibots, no las uses para eso):
+            · `ssh prod wp <orden de lectura>` y `ssh prod pagina /ruta`: producción, SOLO LECTURA (opciones, entradas, términos, plugins; la página como la sirve el servidor). Lo que escribe está bloqueado.
+            · `.tafona/ver.sh https://…`: la página en un navegador de verdad, con accesibilidad (axe) y captura en /tmp/captura.png (ábrela con Read).
+          - Un dato que falta: búscalo antes de darlo por desconocido (repo, web real, internet con WebSearch). Si no aparece, no pares: PR con el hueco marcado `PENDIENTE: <qué>`.
+          - La PR: rama, `gh pr create` hacia main, completa (textos en TODOS los idiomas de la web, valores, traducciones). En la descripción:
+            · «Refs #n» si la issue tiene la etiqueta `auditoria` (la cierra la auditoría); «Closes #n» si no.
+            · «Lo que decides»: lo opinable, con tu propuesta.
+            · «Cómo se comprueba»: qué mirar en la web real, con URL, para dar el cambio por bueno. La etapa de verificar lo usará.
+          - Las preguntas van en la PR, nunca en la issue si ya hay PR; en la issue deja «La decisión está en la PR #x».
+          - Si la causa está fuera del código (ajustes de un plugin, opciones, metadatos), la PR lleva un script WP-CLI en tools/: copia previa en ~/copias (y para si falla), `--seco`, cómo se deshace, el valor por la entrada estándar (`printf '%s' "$v" | wp option patch update …`), la constante de WPML ICL_STRING_TRANSLATION_COMPLETE (no ICL_TL_COMPLETE) y `wp sg purge` al final.
+          - Sigue el CLAUDE.md del repo. NUNCA fusiones, despliegues ni ejecutes nada que escriba en producción.
+          FIN
+          echo
+          case "$TAREA" in
+            arreglar) echo "TAREA: la issue #$N. Primero CLASIFÍCALA: pon UNA etiqueta de tipo (gh issue edit $N --add-label codigo|contenido|configuracion). Después: si se puede arreglar sin una decisión previa, haz la PR. Si hace falta un dato o una decisión que solo tiene una persona y no puedes ni proponerlo, pon la etiqueta decide, asígnala (David: dpereztomas para datos de cliente, textos al público, lo legal, lo que cuesta; Juan: SoporteEstrategiaWeb para lo técnico del plugin o del tema compartidos) y escribe UNA pregunta concreta." ;;
+            retomar) echo "TAREA: $AUTOR, que decide, ha contestado en #$N. Lee todo el hilo, toma su respuesta como la decisión y sigue: actualiza la PR (o ábrela) con lo que ha dicho y quita la etiqueta decide si ya no hace falta. No vuelvas a preguntar lo mismo; si su respuesta no basta, una sola pregunta más, concreta." ;;
+            comentario) echo "TAREA: $AUTOR te ha escrito en #$N. Haz lo que pide su último comentario, dentro de las reglas fijas." ;;
+            verificar) echo "TAREA: VERIFICA la issue #$N, que ya está aplicada en producción. Busca su PR (la que dice Refs o Closes #$N) y su sección «Cómo se comprueba»; compruébalo en la web real ($WEB) con .tafona/ver.sh y ssh prod. Si está bien: comenta en #$N qué has mirado y lo que has visto, y ciérrala (gh issue close $N). Si no: comenta qué falla, quita la etiqueta aplicado, pon decide y asígnala a dpereztomas." ;;
+          esac
+          echo 'FIN_PROMPT'
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: anthropics/claude-code-action@v1
+        if: steps.toca.outputs.tarea != ''
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          track_progress: true
+          prompt: ${{ steps.prompt.outputs.texto }}
+          claude_args: |
+            --allowedTools "Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr edit:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(gh issue close:*),Bash(php -l:*),Bash(bash -n:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(ssh prod:*),Bash(.tafona/ver.sh:*),Bash(npm ci:*),Bash(npm test:*),WebSearch,WebFetch"
+            --max-turns 80
+
+      # The reviewer, on the PR this run opened or updated. A PR made with
+      # GITHUB_TOKEN starts no workflow: it is launched by dispatch.
+      - name: Lanzar la revisora
+        if: ${{ always() && (steps.toca.outputs.tarea == 'arreglar' || steps.toca.outputs.tarea == 'retomar' || steps.toca.outputs.tarea == 'comentario') }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          N: ${{ github.event.issue.number }}
+          ES_PR: ${{ github.event.issue.pull_request != null }}
+        run: |
+          if [ "$ES_PR" = true ]; then pr=$N
+          else pr=$(gh pr list -R "$GITHUB_REPOSITORY" --state open --search "#$N in:body" --json number -q '.[0].number'); fi
+          if [ -n "$pr" ]; then gh workflow run tafona.yml -R "$GITHUB_REPOSITORY" --ref main -f pr="$pr" && echo "revisora lanzada sobre #$pr"; else echo "sin PR que revisar"; fi

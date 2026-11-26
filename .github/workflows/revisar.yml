@@ -1,0 +1,96 @@
+# TAFONA · revisar — the decision stage: RUTINA, or a person decides.
+#
+# Called from each project's tafona.yml on a PR (opened/updated by a person)
+# or by dispatch from «trabajar» (a PR Claude opened). It checks the PR,
+# classifies it with the criterion below (approved by David on 26-11-2026),
+# and when a person must decide: label «decide», ASSIGN it (David or Juan)
+# and ONE concrete question. SHADOW MODE: it never approves or merges.
+#
+# How to maintain:
+#   - The criterion lives in CRITERIO below, inside this file: Tafona is
+#     private and a project's token cannot read its other files.
+#   - A condition is added from a «rutina» PR that should not have been;
+#     removed after many «decide» PRs that the person merged untouched. Write
+#     the date and the case next to it.
+#   - The criterion and the tools come from HERE, never from the PR under
+#     review: a PR must not be able to rewrite its own review.
+name: Tafona · revisar
+
+on:
+  workflow_call:
+    inputs:
+      pr: { type: string, required: true }
+      prod_host: { type: string, required: true }
+      prod_user: { type: string, required: true }
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: { required: true }
+      PROD_LECTURA_KEY: { required: true }
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  revisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 1 }
+
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ inputs.pr }}/head
+          path: pr
+          fetch-depth: 1
+
+      - name: Herramientas y etiquetas
+        env:
+          LLAVE: ${{ secrets.PROD_LECTURA_KEY }}
+          PROD_HOST: ${{ inputs.prod_host }}
+          PROD_USER: ${{ inputs.prod_user }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p ~/.ssh && umask 077
+          printf '%s\n' "$LLAVE" > ~/.ssh/prod
+          printf 'Host prod\n  HostName %s\n  User %s\n  Port 18765\n  IdentityFile ~/.ssh/prod\n  IdentitiesOnly yes\n  StrictHostKeyChecking accept-new\n  BatchMode yes\n' "$PROD_HOST" "$PROD_USER" > ~/.ssh/config
+          ssh prod wp core version
+          gh label create rutina -R "$GITHUB_REPOSITORY" --color 0e8a16 --description "Tafona: sin nada que decidir" --force
+          gh label create decide -R "$GITHUB_REPOSITORY" --color d93f0b --description "Tafona: decide una persona (la asignada)" --force
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          allowed_bots: "github-actions"
+          prompt: |
+            Eres la REVISORA de Tafona. Revisa la PR #${{ inputs.pr }} de este repo. No la arreglas: compruebas, clasificas y das un veredicto. El código de la PR está en la carpeta pr/ (léelo ahí); la issue que arregla es la que cita «Refs #n» o «Closes #n» (gh issue view).
+
+            1. COMPRUEBA
+            - Que hace lo que dice la issue y nada más (gh pr diff).
+            - php -l de cada PHP tocado en pr/; bash -n de cada script.
+            - Si trae un script de WordPress: copia previa, --seco, cómo se deshace, el valor por la entrada estándar en `wp option patch` (printf '%s' "$v" | wp option patch …) y ICL_STRING_TRANSLATION_COMPLETE (no ICL_TL_COMPLETE). NO lo ejecutes: lee tú con `ssh prod wp …` los valores que su --seco imprimiría y di si coinciden con lo que la PR da por supuesto.
+            - Contra la web real: `ssh prod wp <lectura>`, `ssh prod pagina /ruta` (solo lectura). curl contra nuestras webs recibe el antibots.
+            - Lo que no puedas comprobar, DILO.
+
+            2. CLASIFICA. Es DECIDE si se cumple cualquiera; si ninguna, RUTINA:
+            - texto que verá el público escrito a mano (no cuentan %%excerpt%%, %%term_description%%, el título de la página);
+            - un dato que solo tiene una persona o el cliente (NIF, dirección, imagen, correo);
+            - lo legal (aviso legal, privacidad, cookies, accesibilidad);
+            - lo que borra o no se deshace con una copia;
+            - lo que cuesta dinero o da de alta un servicio;
+            - lo que cambia cómo se ve la web más allá del arreglo;
+            - lo que toca el plugin o el tema compartidos (más de una web);
+            - tu comprobación ha fallado o te deja dudas.
+            Una PR que mezcla las dos cosas es DECIDE entera.
+
+            3. QUIÉN DECIDE (solo si es DECIDE): David (dpereztomas) para datos de cliente, textos al público, lo legal y lo que cuesta; Juan (SoporteEstrategiaWeb) para lo técnico del plugin o del tema compartidos; si no está claro, a los dos.
+
+            4. VEREDICTO: un comentario en la PR (gh pr comment) que EMPIEZA por «RUTINA» o por «DECIDE @persona», con UNA pregunta concreta si es DECIDE, y una lista corta de lo comprobado y lo no comprobado. Después: gh pr edit ${{ inputs.pr }} --add-label rutina, o --add-label decide --add-assignee <persona>. Si la PR ya tenía la etiqueta contraria, quítala.
+
+            MODO SOMBRA (desde el 26-11-2026): no apruebas ni fusionas nada.
+          claude_args: |
+            --allowedTools "Read,Glob,Grep,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr edit:*),Bash(gh issue view:*),Bash(php -l:*),Bash(bash -n:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(ssh prod:*),WebSearch"
+            --max-turns 40
