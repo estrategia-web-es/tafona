@@ -20,11 +20,12 @@ on:
   workflow_call:
     inputs:
       pr: { type: string, required: true }
-      prod_host: { type: string, required: true }
-      prod_user: { type: string, required: true }
+      # Empty for a repo with no site (the plugin, a tool): no «ssh prod».
+      prod_host: { type: string, default: "" }
+      prod_user: { type: string, default: "" }
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: { required: true }
-      PROD_LECTURA_KEY: { required: true }
+      PROD_LECTURA_KEY: { required: false }
       TAFONA_TOKEN: { required: false }   # org secret: write to the board
 
 permissions:
@@ -56,10 +57,12 @@ jobs:
           PROD_USER: ${{ inputs.prod_user }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir -p ~/.ssh && umask 077
-          printf '%s\n' "$LLAVE" > ~/.ssh/prod
-          printf 'Host prod\n  HostName %s\n  User %s\n  Port 18765\n  IdentityFile ~/.ssh/prod\n  IdentitiesOnly yes\n  StrictHostKeyChecking accept-new\n  BatchMode yes\n' "$PROD_HOST" "$PROD_USER" > ~/.ssh/config
-          ssh prod wp core version
+          if [ -n "$PROD_HOST" ]; then
+            mkdir -p ~/.ssh && umask 077
+            printf '%s\n' "$LLAVE" > ~/.ssh/prod
+            printf 'Host prod\n  HostName %s\n  User %s\n  Port 18765\n  IdentityFile ~/.ssh/prod\n  IdentitiesOnly yes\n  StrictHostKeyChecking accept-new\n  BatchMode yes\n' "$PROD_HOST" "$PROD_USER" > ~/.ssh/config
+            ssh prod wp core version
+          else echo "sin web (un plugin, una herramienta): no hay ssh prod"; fi
           gh label create rutina -R "$GITHUB_REPOSITORY" --color 0e8a16 --description "Tafona: sin nada que decidir" --force
           gh label create decide -R "$GITHUB_REPOSITORY" --color d93f0b --description "Tafona: decide una persona (la asignada)" --force
           gh label create tafona -R "$GITHUB_REPOSITORY" --color 5319e7 --description "Tafona: un fallo del proceso, no del proyecto" --force
