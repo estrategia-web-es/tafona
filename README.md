@@ -21,6 +21,29 @@ el desarrollo lo hace el proceso, y ellos deciden.
 
 El tablero es de Tafona: https://github.com/orgs/estrategia-web-es/projects/1
 
+## El mapa (David, 26-11-2026)
+
+Un tablero, Tafona en medio, y tres clases de cosas:
+
+- **Fuentes** — solo abren issues, nunca arreglan: la auditoría semanal
+  (`auditoria-tool`), las tareas nocturnas (errores, rendimiento, recursos,
+  oportunidades) y las personas. Cada fuente tiene un **límite** de issues
+  abiertas y **no repite** lo que ya está abierto.
+- **Proyectos** — cada uno con su forma de publicar, y **la release es el
+  OK**: fusionar acumula en `main`; publicar es crear la release en GitHub.
+  - plugin y tema padre → WordPress.org;
+  - tema hijo de cada web → su directorio en el servidor, con sus migraciones
+    (las ejecuta el módulo del plugin al cambiar la versión);
+  - herramientas → su release;
+  - Tafona y la auditoría → se trabajan a sí mismas por el mismo proceso.
+- **Tafona** — el motor: clasificar, PR, revisora, decisión, publicar,
+  verificar.
+
+Tafona será **pública** y vivirá en `estrategia-web-es`: es el motor de todo,
+y para que otras organizaciones lo usen sus flujos tienen que poder leerse
+desde fuera (no hay nada sensible dentro: clientes, servidores y llaves viven
+en cada proyecto).
+
 ## Las tres piezas
 
 - **Las fuentes solo abren issues.** Detectan y describen; no clasifican ni
