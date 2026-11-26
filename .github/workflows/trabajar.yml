@@ -33,6 +33,7 @@ on:
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: { required: true }
       PROD_LECTURA_KEY: { required: false }
+      TAFONA_TOKEN: { required: false }   # org secret: write to the board
 
 permissions:
   contents: write
@@ -45,6 +46,8 @@ jobs:
   trabajar:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    env:
+      HAY_TABLERO: ${{ secrets.TAFONA_TOKEN != '' }}
     steps:
       - name: Qué toca
         id: toca
@@ -72,6 +75,15 @@ jobs:
           fi
           echo "tarea=$t" >> "$GITHUB_OUTPUT"
           echo "Qué toca en #$N: ${t:-nada}"
+
+      # The issue goes on the board with GitHub's own action; from there the
+      # board's built-in workflows move it (added → Triaje, closed → Verificado).
+      - name: Al tablero (la issue)
+        if: steps.toca.outputs.tarea == 'arreglar' && env.HAY_TABLERO == 'true'
+        uses: actions/add-to-project@v2.0.0
+        with:
+          project-url: https://github.com/orgs/estrategia-web-es/projects/1
+          github-token: ${{ secrets.TAFONA_TOKEN }}
 
       - uses: actions/checkout@v4
         if: steps.toca.outputs.tarea != ''

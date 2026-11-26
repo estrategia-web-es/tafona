@@ -25,6 +25,7 @@ on:
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: { required: true }
       PROD_LECTURA_KEY: { required: true }
+      TAFONA_TOKEN: { required: false }   # org secret: write to the board
 
 permissions:
   contents: read
@@ -36,6 +37,8 @@ jobs:
   revisar:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      HAY_TABLERO: ${{ secrets.TAFONA_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 1 }
@@ -97,3 +100,13 @@ jobs:
           claude_args: |
             --allowedTools "Read,Glob,Grep,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr edit:*),Bash(gh issue view:*),Bash(php -l:*),Bash(bash -n:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(ssh prod:*),Bash(node --check:*),Bash(gh issue create:*),Bash(gh issue list:*),WebSearch"
             --max-turns 40
+
+      # The PR is the card while it waits for a person: on the board with
+      # GitHub's CLI (actions/add-to-project needs the PR in the event, and a
+      # dispatched review has none). Adding twice is harmless. The board's
+      # built-in workflows move it: added → Espera tu OK, merged → Aplicado.
+      - name: Al tablero (la PR)
+        if: ${{ always() && env.HAY_TABLERO == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.TAFONA_TOKEN }}
+        run: gh project item-add 1 --owner estrategia-web-es --url "https://github.com/$GITHUB_REPOSITORY/pull/${{ inputs.pr }}"
