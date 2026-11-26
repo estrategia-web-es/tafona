@@ -163,7 +163,7 @@ jobs:
             · `.tafona/ver.sh https://…`: la página en un navegador de verdad, con accesibilidad (axe) y captura en /tmp/captura.png (ábrela con Read).
           - Un dato que falta: búscalo antes de darlo por desconocido (repo, web real, internet con WebSearch). Si no aparece, no pares: PR con el hueco marcado `PENDIENTE: <qué>`.
           - La PR: rama, `gh pr create` hacia main, completa (textos en TODOS los idiomas de la web, valores, traducciones). En la descripción:
-            · «Refs #n» si la issue tiene la etiqueta `auditoria` (la cierra la auditoría); «Closes #n» si no.
+            · SIEMPRE «Refs #n», NUNCA «Closes», «Fixes» ni «Resolves»: esas palabras cierran la issue al fusionar, y la issue solo la cierra quien la VERIFICA en la web real (estrategiaweb-es#5 se cerró sola al fusionar y pasó a Verificado sin que nadie lo comprobara, 26-11-2026).
             · «Lo que decides»: lo opinable, con tu propuesta.
             · «Cómo se comprueba»: qué mirar en la web real, con URL, para dar el cambio por bueno. La etapa de verificar lo usará.
           - Las preguntas van en la PR, nunca en la issue si ya hay PR; en la issue deja «La decisión está en la PR #x».

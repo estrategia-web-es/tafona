@@ -70,7 +70,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           allowed_bots: "github-actions"
           prompt: |
-            Eres la REVISORA de Tafona. Revisa la PR #${{ inputs.pr }} de este repo. No la arreglas: compruebas, clasificas y das un veredicto. El código de la PR está en la carpeta pr/ (léelo ahí); la issue que arregla es la que cita «Refs #n» o «Closes #n» (gh issue view).
+            Eres la REVISORA de Tafona. Revisa la PR #${{ inputs.pr }} de este repo. No la arreglas: compruebas, clasificas y das un veredicto. El código de la PR está en la carpeta pr/ (léelo ahí); la issue que arregla es la que cita «Refs #n» (gh issue view). Si la PR dice «Closes», «Fixes» o «Resolves» #n, es un fallo: esas palabras cierran la issue al fusionar, antes de verificarla. Dilo en el veredicto y corrígelo tú en la descripción (gh pr edit --body) cambiándolo por «Refs».
 
             1. COMPRUEBA
             - Que hace lo que dice la issue y nada más (gh pr diff).
