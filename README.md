@@ -73,8 +73,10 @@ manual; la bandeja de clasificar y la verificación de la auditoría, en
 
 ## Cómo se mantiene
 
-- **Un proyecto nuevo** entra con: el fichero que engancha Tafona, los dos
-  secretos (`CLAUDE_CODE_OAUTH_TOKEN` y `PROD_LECTURA_KEY`), la llave de solo
+- **Un proyecto nuevo** entra con: el fichero que engancha Tafona, los tres
+  secretos (`CLAUDE_CODE_OAUTH_TOKEN`, `PROD_LECTURA_KEY` y `TAFONA_TOKEN`, el
+  token de proyectos que escribe en el tablero; repo a repo porque un secreto
+  de organización pide un permiso de administrador), la llave de solo
   lectura en su servidor y, si tiene auditoría, su línea en `sitios.json` de
   `auditoria-tool`.
 - **Una fuente nueva** solo tiene que abrir issues con la etiqueta `tafona` y

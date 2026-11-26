@@ -2,6 +2,15 @@
 
 Lo terminado sale de aquí, al historial de git con el commit que lo cierra.
 
+## 0. Regenerar el token del tablero
+**Fecha:** 26-11-2026 · **Vence:** en cuanto David esté en la oficina
+
+El token de proyectos se pegó en una conversación: está comprometido. David lo
+regenera (github.com/settings/personal-access-tokens, «Regenerate token») y se
+vuelve a cargar como `TAFONA_TOKEN` en tafona, estrategiaweb-es y
+gastronomicament-cat, y como `PROJECTS_TOKEN` en auditoria-tool. El valor no
+se pega en el chat: va a `auditoria-tool/secretos/github-projects.txt`.
+
 ## 1. La decisión se retoma sola
 **Fecha:** 26-11-2026
 
