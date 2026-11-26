@@ -3,7 +3,8 @@
 # Called from each project's .github/workflows/tafona.yml (plantilla/tafona.yml).
 # What it does depends on what happened (step «Qué toca»):
 #
-#   issue opened, or labelled «claude»   → CLASSIFY and, if nothing needs deciding first, make the PR
+#   issue labelled «claude»              → CLASSIFY and, if nothing needs deciding first, make the PR
+#                                          (just opening an issue does nothing, on purpose)
 #   a person who decides comments on an item labelled «decide»  → RESUME with the answer
 #   a comment that mentions @claude      → do what the comment asks
 #   issue labelled «aplicado»            → VERIFY against the live site, close or send back
@@ -58,8 +59,10 @@ jobs:
           N: ${{ github.event.issue.number }}
         run: |
           t=""
-          if [ "$EVENTO" = issues ] && [ "$ACCION" = opened ] && [ "$ES_BOT" != true ]; then t=arreglar
-          elif [ "$EVENTO" = issues ] && [ "$ACCION" = labeled ] && [ "$ETIQUETA" = claude ]; then t=arreglar
+          # An issue that is just opened does NOTHING: work starts when someone
+          # puts the label «claude» (David, 26-11-2026: «me gusta que haya que
+          # hacer alguna acción para que empiece»). Two steps: write it, ask for it.
+          if [ "$EVENTO" = issues ] && [ "$ACCION" = labeled ] && [ "$ETIQUETA" = claude ]; then t=arreglar
           elif [ "$EVENTO" = issues ] && [ "$ACCION" = labeled ] && [ "$ETIQUETA" = aplicado ]; then t=verificar
           elif [ "$EVENTO" = issue_comment ] && [ "$ES_BOT" != true ]; then
             if grep -qi '@claude' <<< "$CUERPO"; then t=comentario
