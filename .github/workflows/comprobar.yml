@@ -11,10 +11,10 @@ name: Comprobar
 
 on:
   pull_request:
-    paths: [".github/workflows/**", "plantilla/**"]
+    paths: [".github/workflows/**", "plantilla/**", "servidor/**"]
   push:
     branches: [main]
-    paths: [".github/workflows/**", "plantilla/**"]
+    paths: [".github/workflows/**", "plantilla/**", "servidor/**"]
 
 permissions:
   contents: read
@@ -30,3 +30,19 @@ jobs:
           bash <(curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7
           # plantilla/ holds files meant for OTHER repos: checked too.
           ./actionlint -color .github/workflows/*.yml plantilla/*.yml
+
+  # The server guards (servidor/*.sh) write or read production: their case
+  # tests run on Linux, like the server, on every change. On Windows three
+  # cases fail for the environment (no symlinks), not for the guard; Claude
+  # cannot run them either (tafona#9). Here they always run.
+  guardianes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pruebas de los guardianes
+        run: |
+          shopt -s nullglob
+          pruebas=(servidor/probar-*.sh)
+          [ ${#pruebas[@]} -gt 0 ] || { echo "sin guardianes que probar"; exit 0; }
+          for p in "${pruebas[@]}"; do echo "== $p"; bash "$p"; done
