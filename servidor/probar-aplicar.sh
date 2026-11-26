@@ -43,6 +43,11 @@ caso "demasiado grande"      1 "aplicar v1.1.0"      "$T/grande" A=1
 caso "falla la copia de BD"  1 "aplicar v1.1.0"      "$T/bueno.tgz" WP_FALLA_BD=1
 grep -q 'Version: 1.0.0' "$T/temas/hijo/style.css" && { ok=$((ok+1)); echo "ok   tema intacto tras fallo"; } || { mal=$((mal+1)); echo "MAL  tema tocado"; }
 caso "migración falla (HTTP)" 1 "aplicar v1.1.0"     "$T/bueno.tgz" CURL_CODIGO=500
+grep -q 'Version: 1.0.0' "$T/temas/hijo/style.css" && [ ! -e "$T/temas/hijo.vell" ] && [ ! -e "$T/temas/hijo.nou" ] \
+  && { ok=$((ok+1)); echo "ok   vuelta atrás: tema anterior restaurado"; } || { mal=$((mal+1)); echo "MAL  vuelta atrás"; }
+grep -q 'VUELTA ATRÁS' "$T/reg.log" && { ok=$((ok+1)); echo "ok   vuelta atrás en el registro"; } || { mal=$((mal+1)); echo "MAL  registro de la vuelta atrás"; }
+sal=$(env CURL_CODIGO=500 SSH_ORIGINAL_COMMAND="aplicar v1.1.0" "$AQUI/aplicar.sh" "$T/web" "$T/temas" hijo https://x.test/ < "$T/bueno.tgz" 2>&1 >/dev/null)
+case "$sal" in *"vuelto atrás"*"NO se ha restaurado"*"bd-"*) ok=$((ok+1)); echo "ok   mensaje: vuelta atrás y copia de BD";; *) mal=$((mal+1)); echo "MAL  mensaje: $sal";; esac
 paquete 1.3.0 > "$T/c.tgz"
 caso "migración falla (opción)" 1 "aplicar v1.3.0"   "$T/c.tgz" MIGRACIONES_OPCION=r "WP_RES=error: boom"
 paquete 1.4.0 > "$T/d.tgz"
@@ -50,4 +55,11 @@ caso "despliegue correcto"   0 "aplicar v1.4.0"      "$T/d.tgz" MIGRACIONES_OPCI
 grep -q 'Version: 1.4.0' "$T/temas/hijo/style.css" && [ -d "$T/temas/hijo.ant" ] && ls "$T/copias"/bd-*.sql >/dev/null 2>&1 \
   && { ok=$((ok+1)); echo "ok   tema nuevo, .ant y copia de BD"; } || { mal=$((mal+1)); echo "MAL  resultado del despliegue"; }
 grep -q APLICADO "$T/reg.log" && { ok=$((ok+1)); echo "ok   registro"; } || { mal=$((mal+1)); echo "MAL  registro"; }
+# Retención: solo las del guardián, y APLICAR_CONSERVAR las últimas.
+touch "$T/copias/bd-ajeno.sql" "$T/copias/bd-20200101-000000.sql"
+for v in 1.5.0 1.6.0 1.7.0; do paquete $v > "$T/r.tgz"; caso "retención $v" 0 "aplicar v$v" "$T/r.tgz" APLICAR_CONSERVAR=2; done
+propias=$(ls "$T/copias"/bd-*.sql | grep -vc -e 'bd-ajeno.sql' -e 'bd-20200101-000000.sql')
+[ "$propias" = 2 ] && [ -e "$T/copias/bd-ajeno.sql" ] && [ -e "$T/copias/bd-20200101-000000.sql" ] \
+  && { ok=$((ok+1)); echo "ok   retención: 2 propias, ajenas intactas"; } || { mal=$((mal+1)); echo "MAL  retención ($propias propias)"; }
+caso "APLICAR_CONSERVAR no válido" 1 "aplicar v1.8.0" "$T/r.tgz" APLICAR_CONSERVAR=0
 echo "$ok bien, $mal mal"; [ $mal -eq 0 ]
