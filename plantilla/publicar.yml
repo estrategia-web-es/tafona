@@ -1,0 +1,67 @@
+# TAFONA · publicar — reusable workflow: on a release of a site's repo, deploy
+# the child theme to its server and mark the issues of that release «aplicado».
+#
+# MUST LIVE AT .github/workflows/publicar.yml in Tafona to be callable (it is
+# here in plantilla/ only because the bot that wrote it cannot push to
+# .github/workflows: a person moves it, see the PR).
+#
+# Needs the secret PROD_APLICAR_KEY (private half of the apply key, bound on
+# the server to servidor/aplicar.sh). Nothing is installed by this file.
+name: Tafona · publicar
+
+on:
+  workflow_call:
+    inputs:
+      prod_host: { type: string, required: true }
+      prod_user: { type: string, required: true }
+      tema_repo: { type: string, required: true, description: "dir of the child theme in the repo, e.g. wp-content/themes/mi-hijo" }
+    secrets:
+      PROD_APLICAR_KEY: { required: true }
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ github.event.release.tag_name }}", fetch-depth: 0 }
+
+      - name: La versión del tema es la de la etiqueta
+        env: { ETIQUETA: "${{ github.event.release.tag_name }}", TEMA: "${{ inputs.tema_repo }}" }
+        run: |
+          set -euo pipefail
+          V=$(sed -n 's/^[[:space:]]*Version:[[:space:]]*//p' "$TEMA/style.css" | head -1 | tr -d '[:space:]')
+          [ "v$V" = "$ETIQUETA" ] || { echo "::error::style.css dice $V y la release es $ETIQUETA"; exit 1; }
+
+      - name: Desplegar (el guardián del servidor hace el resto)
+        env:
+          ETIQUETA: "${{ github.event.release.tag_name }}"
+          TEMA: "${{ inputs.tema_repo }}"
+          HOST: "${{ inputs.prod_host }}"
+          USUARIO: "${{ inputs.prod_user }}"
+          LLAVE: "${{ secrets.PROD_APLICAR_KEY }}"
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$LLAVE" > ~/.ssh/aplicar && chmod 600 ~/.ssh/aplicar
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          tar -czf - -C "$TEMA" . | ssh -i ~/.ssh/aplicar -o IdentitiesOnly=yes "$USUARIO@$HOST" "aplicar $ETIQUETA"
+
+      - name: «aplicado» en las issues de la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ETIQUETA: "${{ github.event.release.tag_name }}"
+        run: |
+          set -euo pipefail
+          ANTERIOR=$(gh release list --exclude-drafts --exclude-pre-releases --limit 2 --json tagName,publishedAt \
+            --jq "map(select(.tagName != \"$ETIQUETA\")) | .[0].publishedAt // \"1970-01-01T00:00:00Z\"")
+          gh pr list --state merged --base main --limit 200 --search "merged:>$ANTERIOR" --json body \
+            --jq '.[].body' | grep -oiE 'Refs #[0-9]+' | grep -oE '[0-9]+' | sort -u |
+          while read -r n; do
+            gh issue edit "$n" --add-label aplicado || echo "::warning::no se pudo etiquetar #$n"
+          done

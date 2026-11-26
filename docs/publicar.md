@@ -30,7 +30,7 @@ de GitHub, y crearla es el OK de Juan o de David (solo ellos pueden).
 |---|---|---|---|
 | Plugin (`estrategia-web-wp-plugin`) | SVN de WordPress.org (`trunk` y `tags/X.Y.Z`) | `10up/action-wordpress-plugin-deploy` | pendiente (issue en el plugin) |
 | Tema padre (`estrategia-web-wp-theme`) | WordPress.org | **por comprobar**: si un autor puede publicar un tema por SVN o solo con el formulario de la web; si es lo segundo, la release deja el zip y la subida es a mano | pendiente |
-| Cada web (`estrategiaweb-es`, `gastronomicament-cat`…) | su servidor: el directorio de su tema hijo | el desplegador de Tafona (tafona#2) | pendiente |
+| Cada web (`estrategiaweb-es`, `gastronomicament-cat`…) | su servidor: el directorio de su tema hijo | el desplegador de Tafona (tafona#2: `publicar.yml` y `servidor/aplicar.sh`) | en PR |
 | Herramientas (`*-tool`) | su release (y `npm link` donde se usen) | — | pendiente |
 
 ## El tablero con releases (pendiente de David: toca sus reglas)
