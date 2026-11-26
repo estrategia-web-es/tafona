@@ -66,6 +66,17 @@ en cada proyecto).
 
 Contestar en la issue **es** la decisión: el proceso la retoma solo.
 
+## Documentación
+
+- [docs/decisiones.md](docs/decisiones.md) — qué se decidió, cuándo y por qué.
+- [docs/fuentes.md](docs/fuentes.md) — lo que abre issues: personas,
+  auditoría, fallos del proceso, tareas nocturnas.
+- [docs/publicar.md](docs/publicar.md) — fusionar acumula, la release publica.
+- [docs/migraciones.md](docs/migraciones.md) — el contenido viaja con el tema
+  hijo; lo ejecuta el plugin.
+- [docs/alta-de-proyecto.md](docs/alta-de-proyecto.md) — cómo entra un repo
+  en Tafona, con sus trampas.
+
 ## Qué hay aquí
 
 - [.github/workflows/trabajar.yml](.github/workflows/trabajar.yml): clasificar,
