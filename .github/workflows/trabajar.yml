@@ -180,6 +180,7 @@ jobs:
             comentario) echo "TAREA: $AUTOR te ha escrito en #$N. Haz lo que pide su último comentario, dentro de las reglas fijas." ;;
             verificar) echo "TAREA: VERIFICA la issue #$N, que ya está aplicada en producción. Busca su PR (la que dice Refs o Closes #$N) y su sección «Cómo se comprueba»; compruébalo en la web real ($WEB) con .tafona/ver.sh y ssh prod. Si está bien: comenta en #$N qué has mirado y lo que has visto, y ciérrala (gh issue close $N). Si no: comenta qué falla, quita la etiqueta aplicado, pon decide y asígnala a dpereztomas." ;;
           esac
+          [ -n "$WEB" ] || echo "ESTE REPO NO TIENE WEB: no hay ssh prod ni .tafona/ver.sh contra producción; no los intentes. Los flujos (.github/workflows/) no los puedes escribir: déjalos en propuestas/workflows/ y dilo en la PR."
           echo 'FIN_PROMPT'
           } >> "$GITHUB_OUTPUT"
 
