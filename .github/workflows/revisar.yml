@@ -109,4 +109,15 @@ jobs:
         if: ${{ always() && env.HAY_TABLERO == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.TAFONA_TOKEN }}
-        run: gh project item-add 1 --owner estrategia-web-es --url "https://github.com/$GITHUB_REPOSITORY/pull/${{ inputs.pr }}"
+        # And straight to «Espera tu OK»: the board's built-in «Item added»
+        # holds ONE status and cannot be duplicated per type, so it is set for
+        # issues (→ Triaje) and the PR's status is set here (26-11-2026).
+        run: |
+          O=estrategia-web-es
+          ITEM=$(gh project item-add 1 --owner $O --url "https://github.com/$GITHUB_REPOSITORY/pull/${{ inputs.pr }}" --format json -q .id)
+          P=$(gh project view 1 --owner $O --format json -q .id)
+          CAMPOS=$(gh project field-list 1 --owner $O --format json)
+          F=$(jq -r '.fields[] | select(.name=="Status") | .id' <<< "$CAMPOS")
+          OP=$(jq -r '.fields[] | select(.name=="Status") | .options[] | select(.name=="Espera tu OK") | .id' <<< "$CAMPOS")
+          gh project item-edit --id "$ITEM" --project-id "$P" --field-id "$F" --single-select-option-id "$OP" >/dev/null
+          echo "PR #${{ inputs.pr }} en el tablero, en «Espera tu OK»"
