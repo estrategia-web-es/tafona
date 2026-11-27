@@ -1,0 +1,65 @@
+# TAFONA · publicar — reusable workflow: on a release of a site's repo, deploy
+# the child theme to its server, and then publicado.yml moves the issues of
+# that release to «Publicado» (label «publicado», which starts verification).
+#
+# MUST LIVE AT .github/workflows/publicar.yml in Tafona to be callable (it is
+# here in plantilla/ only because the bot that wrote it cannot push to
+# .github/workflows: a person moves it, see the PR).
+#
+# Needs the secret PROD_APLICAR_KEY (private half of the apply key, bound on
+# the server to servidor/aplicar.sh). Nothing is installed by this file.
+name: Tafona · publicar
+
+on:
+  workflow_call:
+    inputs:
+      prod_host: { type: string, required: true }
+      prod_user: { type: string, required: true }
+      tema_repo: { type: string, required: true, description: "dir of the child theme in the repo, e.g. wp-content/themes/mi-hijo" }
+    secrets:
+      PROD_APLICAR_KEY: { required: true }
+      TAFONA_TOKEN: { required: false }   # for publicado.yml: board and verification
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ github.event.release.tag_name }}", fetch-depth: 0 }
+
+      - name: La versión del tema es la de la etiqueta
+        env: { ETIQUETA: "${{ github.event.release.tag_name }}", TEMA: "${{ inputs.tema_repo }}" }
+        run: |
+          set -euo pipefail
+          V=$(sed -n 's/^[[:space:]]*Version:[[:space:]]*//p' "$TEMA/style.css" | head -1 | tr -d '[:space:]')
+          [ "v$V" = "$ETIQUETA" ] || { echo "::error::style.css dice $V y la release es $ETIQUETA"; exit 1; }
+
+      - name: Desplegar (el guardián del servidor hace el resto)
+        env:
+          ETIQUETA: "${{ github.event.release.tag_name }}"
+          TEMA: "${{ inputs.tema_repo }}"
+          HOST: "${{ inputs.prod_host }}"
+          USUARIO: "${{ inputs.prod_user }}"
+          LLAVE: "${{ secrets.PROD_APLICAR_KEY }}"
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$LLAVE" > ~/.ssh/aplicar && chmod 600 ~/.ssh/aplicar
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          tar -czf - -C "$TEMA" . | ssh -i ~/.ssh/aplicar -o IdentitiesOnly=yes "$USUARIO@$HOST" "aplicar $ETIQUETA"
+
+  # Only once the deploy went well (needs): the issues of the release go to
+  # «Publicado» and get verified. Shared with the plugin's publish flow.
+  publicado:
+    needs: publicar
+    uses: estrategia-web-es/tafona/.github/workflows/publicado.yml@main
+    with:
+      version: ${{ github.event.release.tag_name }}
+    secrets:
+      TAFONA_TOKEN: ${{ secrets.TAFONA_TOKEN }}

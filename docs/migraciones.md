@@ -2,16 +2,33 @@
 
 Decidido por David el 26-11-2026: **desplegar una web es copiar su tema
 hijo** (PHP, JS, CSS y migraciones). Un commit: si es código, código; si es
-contenido, una migración. Al actualizarse el tema, las migraciones pendientes
-se ejecutan solas.
+contenido, una migración. Al desplegar el tema, el desplegador ejecuta las
+migraciones pendientes (ver «Cuándo se ejecutan»).
 
 ## Las piezas
 
 | Pieza | Dónde | Qué hace | Estado |
 |---|---|---|---|
 | Las migraciones | `migraciones/` del **tema hijo** de cada web | ficheros PHP con fecha en el nombre (`2026-11-26-testimonio-luis.php`) | — |
-| El ejecutor | módulo `migraciones` del **plugin** | aplica las pendientes en orden, una vez cada una, al cambiar la versión del tema hijo; WP-CLI `estado` y `aplicar --seco` | plugin#18 |
+| El ejecutor | módulo `migraciones` del **plugin** | aplica las pendientes en orden, una vez cada una, con `wp estrategia migrar` (nunca en una visita; en el escritorio solo avisa de las pendientes); WP-CLI `estado` y `aplicar --seco` | plugin#18 |
 | El desplegador | **Tafona** | con la release de la web: copia de la base de datos y del tema, copia el tema hijo nuevo, provoca la ejecución, lee el resultado | tafona#2 |
+
+## Cuándo se ejecutan (contrato decidido por David, 27-11-2026)
+
+Las migraciones **no se ejecutan nunca en una visita**. Solo las ejecuta
+`wp estrategia migrar`, y quien lo lanza es el desplegador (`servidor/aplicar.sh`),
+en este orden: copia de la BD y del tema → copia del tema hijo nuevo →
+`wp estrategia migrar` → visita de comprobación → purga de caché.
+
+- Si el comando **falla**, se deshace el tema (se restaura `<tema>.ant`, como
+  cuando falla la visita) y el despliegue sale en rojo con el error. La base de
+  datos **no** se restaura sola: la copia queda en `~/copias` y lo decide una
+  persona.
+- Si el comando **no existe** porque el plugin es viejo, `aplicar.sh` avisa
+  (registro y salida de error) y sigue sin migrar.
+- Si el plugin ve migraciones pendientes fuera del despliegue, solo avisa en el
+  escritorio de WordPress; no las ejecuta.
+- Contrato en estrategia-web-wp-plugin#22.
 
 ## Por qué el ejecutor está en el plugin y no en el tema padre
 

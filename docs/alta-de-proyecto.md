@@ -36,6 +36,24 @@ quitar esas tres líneas). Nada más del proceso vive en el proyecto.
    pasar pasa, lo que no, no.
 4. La privada, como `PROD_LECTURA_KEY` del repo; borrarla de la máquina.
 
+## 4 bis. La llave de aplicar (solo si despliega un tema hijo)
+
+**Escribe en producción.** La instala una persona con el OK de David; Tafona
+no instala nada en el servidor. Una por web.
+
+1. Llave ed25519 nueva para ese repo.
+2. En la cuenta de SiteGround: `servidor/aplicar.sh` de Tafona en
+   `~/bin/` y una línea en `~/.ssh/authorized_keys2` (copia antes):
+   `command="/home/<cuenta>/bin/aplicar.sh <dir-web> <dir-temas> <tema-hijo> <url-web>",no-pty,no-port-forwarding,no-agent-forwarding,no-X11-forwarding <llave pública>`
+3. Probar el guardián con `servidor/probar-aplicar.sh` (en local, con wp y
+   curl falsos) antes de instalarlo.
+4. La privada, como `PROD_APLICAR_KEY` del repo; borrarla de la máquina.
+5. El job `publicar` de `tafona.yml` declara dónde está el tema hijo en el
+   repo (`tema_repo`); el servidor, en la línea de `authorized_keys2`.
+6. Cada despliegue deja copia de la BD en `~/copias`, el tema anterior en
+   `<tema>.ant` y una línea en `~/registro-aplicar.log`.
+7. **Revocar:** borrar la línea de `authorized_keys2`.
+
 ## 5. La prueba
 
 Una issue pequeña y real, la etiqueta `claude`, y mirar que salga la PR, el

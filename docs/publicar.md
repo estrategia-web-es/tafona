@@ -34,7 +34,7 @@ de GitHub, y crearla es el OK de Juan o de David (solo ellos pueden).
 |---|---|---|---|
 | Plugin (`estrategia-web-wp-plugin`) | SVN de WordPress.org (`trunk` y `tags/X.Y.Z`) | `10up/action-wordpress-plugin-deploy` | pendiente (issue en el plugin) |
 | Tema padre (`estrategia-web-wp-theme`) | WordPress.org | **por comprobar**: si un autor puede publicar un tema por SVN o solo con el formulario de la web; si es lo segundo, la release deja el zip y la subida es a mano | pendiente |
-| Cada web (`estrategiaweb-es`, `gastronomicament-cat`…) | su servidor: el directorio de su tema hijo | el desplegador de Tafona (tafona#2) | pendiente |
+| Cada web (`estrategiaweb-es`, `gastronomicament-cat`…) | su servidor: el directorio de su tema hijo | el desplegador de Tafona (tafona#2: `publicar.yml` y `servidor/aplicar.sh`) | en PR |
 | Herramientas (`*-tool`) | su release (y `npm link` donde se usen) | — | pendiente |
 
 ## El tablero con releases (hecho el 27-11-2026, con OK de David)
@@ -58,6 +58,15 @@ de GitHub, y crearla es el OK de Juan o de David (solo ellos pueden).
 opción va sin su `id`, se crea de nuevo, y las tarjetas y las reglas que
 apuntaban a ella se quedan sin columna. Se mandan todas con su `id` y solo la
 nueva sin él. Comprobado el 27-11-2026 contando las tarjetas antes y después.
+
+## Las migraciones al publicar una web
+
+El desplegador (`servidor/aplicar.sh`) ejecuta `wp estrategia migrar` después
+de copiar el tema hijo y antes de visitar la web (decidido por David el
+27-11-2026, estrategia-web-wp-plugin#22). Las migraciones no se ejecutan nunca
+en una visita. Si el comando falla, se deshace el tema (la BD no: su copia
+queda en `~/copias`) y el flujo sale en rojo con el error; si el plugin es
+viejo y no tiene el comando, avisa y sigue. Ver [migraciones.md](migraciones.md).
 
 ## Credenciales
 
