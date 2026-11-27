@@ -37,9 +37,9 @@ PENDIENTES.md.
 - ~~**El tablero con releases**~~ **Hecho el 27-11 con tu OK** (tafona#11).
   Las columnas son Fusionado y Publicado; la release mueve a Publicado y pone
   la etiqueta `publicado` (antes `aplicado`), que lanza la verificación.
-  Queda enganchado en las PR #6 y plugin#21. Falta: mirar que la regla
-  «PR merged» apunta a Fusionado, y dar `TAFONA_TOKEN` al plugin cuando
-  rotes el token.
+  Queda enganchado en las PR #6 y plugin#21. La regla «PR merged» siguió
+  apuntando a Fusionado sola (lo comprobó David). Falta dar `TAFONA_TOKEN`
+  al plugin cuando se rote el token.
 - **Rotar el token del tablero** (PENDIENTES §0).
 - `solo-lectura.sh` sigue en `auditoria-tool`. Su prueba va en vivo contra
   los servidores, así que no puede entrar en `Comprobar`. Moverlo pide otro
