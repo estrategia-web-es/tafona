@@ -9,7 +9,12 @@ cat > "$T/bin/wp" <<'W'
 #!/usr/bin/env bash
 case "$*" in
   *"db export"*) [ -n "${WP_FALLA_BD:-}" ] && exit 1; echo -- > "${@: -1}" ;;
-  *"option get"*) echo "${WP_RES:-ok}" ;;
+  *"estrategia migrar"*)
+    case "${WP_MIGRAR:-ok}" in
+      falla) echo "Error: boom en la migración" >&2; exit 1 ;;
+      viejo) echo "Error: 'estrategia' is not a registered wp command. See 'wp help' for available commands." >&2; exit 1 ;;
+      *) echo "Success: 0 pendientes" ;;
+    esac ;;
 esac
 W
 cat > "$T/bin/curl" <<'W'
@@ -49,10 +54,17 @@ grep -q 'VUELTA ATRÁS' "$T/reg.log" && { ok=$((ok+1)); echo "ok   vuelta atrás
 sal=$(env CURL_CODIGO=500 SSH_ORIGINAL_COMMAND="aplicar v1.1.0" "$AQUI/aplicar.sh" "$T/web" "$T/temas" hijo https://x.test/ < "$T/bueno.tgz" 2>&1 >/dev/null)
 case "$sal" in *"vuelto atrás"*"NO se ha restaurado"*"bd-"*) ok=$((ok+1)); echo "ok   mensaje: vuelta atrás y copia de BD";; *) mal=$((mal+1)); echo "MAL  mensaje: $sal";; esac
 paquete 1.3.0 > "$T/c.tgz"
-caso "migración falla (opción)" 1 "aplicar v1.3.0"   "$T/c.tgz" MIGRACIONES_OPCION=r "WP_RES=error: boom"
+caso "migración falla (comando)" 1 "aplicar v1.3.0"  "$T/c.tgz" WP_MIGRAR=falla
+grep -q 'Version: 1.0.0' "$T/temas/hijo/style.css" && [ ! -e "$T/temas/hijo.vell" ] && [ ! -e "$T/temas/hijo.nou" ] \
+  && { ok=$((ok+1)); echo "ok   migración falla: tema anterior restaurado"; } || { mal=$((mal+1)); echo "MAL  migración falla: no volvió atrás"; }
+sal=$(env WP_MIGRAR=falla SSH_ORIGINAL_COMMAND="aplicar v1.3.0" "$AQUI/aplicar.sh" "$T/web" "$T/temas" hijo https://x.test/ < "$T/c.tgz" 2>&1 >/dev/null)
+case "$sal" in *"boom en la migración"*"vuelto atrás"*"bd-"*) ok=$((ok+1)); echo "ok   migración falla: sale el error y la vuelta atrás";; *) mal=$((mal+1)); echo "MAL  mensaje migración: $sal";; esac
 paquete 1.4.0 > "$T/d.tgz"
-caso "despliegue correcto"   0 "aplicar v1.4.0"      "$T/d.tgz" MIGRACIONES_OPCION=r
-grep -q 'Version: 1.4.0' "$T/temas/hijo/style.css" && [ -d "$T/temas/hijo.ant" ] && ls "$T/copias"/bd-*.sql >/dev/null 2>&1 \
+caso "plugin viejo: avisa y sigue" 0 "aplicar v1.4.0" "$T/d.tgz" WP_MIGRAR=viejo
+grep -q 'plugin viejo' "$T/reg.log" && { ok=$((ok+1)); echo "ok   plugin viejo: aviso en el registro"; } || { mal=$((mal+1)); echo "MAL  plugin viejo sin aviso"; }
+paquete 1.4.1 > "$T/d.tgz"
+caso "despliegue correcto"   0 "aplicar v1.4.1"      "$T/d.tgz" A=1
+grep -q 'Version: 1.4.1' "$T/temas/hijo/style.css" && [ -d "$T/temas/hijo.ant" ] && ls "$T/copias"/bd-*.sql >/dev/null 2>&1 \
   && { ok=$((ok+1)); echo "ok   tema nuevo, .ant y copia de BD"; } || { mal=$((mal+1)); echo "MAL  resultado del despliegue"; }
 grep -q APLICADO "$T/reg.log" && { ok=$((ok+1)); echo "ok   registro"; } || { mal=$((mal+1)); echo "MAL  registro"; }
 # Retención: solo las del guardián, y APLICAR_CONSERVAR las últimas.
