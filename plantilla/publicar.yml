@@ -1,5 +1,6 @@
 # TAFONA · publicar — reusable workflow: on a release of a site's repo, deploy
-# the child theme to its server and mark the issues of that release «aplicado».
+# the child theme to its server, and then publicado.yml moves the issues of
+# that release to «Publicado» (label «publicado», which starts verification).
 #
 # MUST LIVE AT .github/workflows/publicar.yml in Tafona to be callable (it is
 # here in plantilla/ only because the bot that wrote it cannot push to
@@ -17,6 +18,7 @@ on:
       tema_repo: { type: string, required: true, description: "dir of the child theme in the repo, e.g. wp-content/themes/mi-hijo" }
     secrets:
       PROD_APLICAR_KEY: { required: true }
+      TAFONA_TOKEN: { required: false }   # for publicado.yml: board and verification
 
 permissions:
   contents: read
@@ -52,16 +54,12 @@ jobs:
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
           tar -czf - -C "$TEMA" . | ssh -i ~/.ssh/aplicar -o IdentitiesOnly=yes "$USUARIO@$HOST" "aplicar $ETIQUETA"
 
-      - name: «aplicado» en las issues de la release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ETIQUETA: "${{ github.event.release.tag_name }}"
-        run: |
-          set -euo pipefail
-          ANTERIOR=$(gh release list --exclude-drafts --exclude-pre-releases --limit 2 --json tagName,publishedAt \
-            --jq "map(select(.tagName != \"$ETIQUETA\")) | .[0].publishedAt // \"1970-01-01T00:00:00Z\"")
-          gh pr list --state merged --base main --limit 200 --search "merged:>$ANTERIOR" --json body \
-            --jq '.[].body' | grep -oiE 'Refs #[0-9]+' | grep -oE '[0-9]+' | sort -u |
-          while read -r n; do
-            gh issue edit "$n" --add-label aplicado || echo "::warning::no se pudo etiquetar #$n"
-          done
+  # Only once the deploy went well (needs): the issues of the release go to
+  # «Publicado» and get verified. Shared with the plugin's publish flow.
+  publicado:
+    needs: publicar
+    uses: estrategia-web-es/tafona/.github/workflows/publicado.yml@main
+    with:
+      version: ${{ github.event.release.tag_name }}
+    secrets:
+      TAFONA_TOKEN: ${{ secrets.TAFONA_TOKEN }}

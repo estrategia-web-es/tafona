@@ -21,8 +21,12 @@ de GitHub, y crearla es el OK de Juan o de David (solo ellos pueden).
      niega si no;
    - publica (ver la tabla);
    - adjunta el zip a la release.
-5. Tafona pone `aplicado` en las issues que entraron en esa versión (las que
-   citan sus PR con «Refs #n») y la etapa de verificar las comprueba y cierra.
+5. Como último paso del flujo de publicar,
+   [publicado.yml](../.github/workflows/publicado.yml) busca las PR fusionadas
+   entre la etiqueta anterior y esta, y sus «Refs #n». A cada issue abierta le
+   pone un comentario con la release, la etiqueta `publicado` y su tarjeta en
+   **Publicado**. La etiqueta lanza la etapa de verificar, que la comprueba y
+   la cierra.
 
 ## Qué hace la release en cada proyecto
 
