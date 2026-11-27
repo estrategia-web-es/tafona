@@ -44,10 +44,9 @@ como mucho **3 issues por noche** con la etiqueta `nocturna`, una por causa y
 con «Cómo se verifica», **sin `claude`**. Antes mira las `nocturna` abiertas
 para no repetir. Si no encuentra nada, no abre nada. Nunca abre PR.
 
-- **El flujo:** `plantilla/nocturna-errores.yml` (reutilizable). Debe vivir en
-  `.github/workflows/nocturna-errores.yml`; está en `plantilla/` porque la app
-  de Claude no puede escribir en `.github/workflows`, así que una persona lo
-  mueve (`git mv`).
+- **El flujo:** `.github/workflows/nocturna-errores.yml` (reutilizable). Ya
+  está en su sitio; la app de Claude no puede escribir ahí, así que lo movió
+  una persona.
 - **Activarla en un proyecto:** en su `tafona.yml`, descomentar el `schedule` y
   el job `nocturna` (están en `plantilla/tafona.yml`). Mismos secretos que el
   resto. PENDIENTE: lanzarla a mano. El `workflow_dispatch` de la plantilla
