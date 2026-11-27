@@ -34,8 +34,12 @@ PENDIENTES.md.
 
 - **tafona#4:** Claude no puede escribir flujos. Recomendación: que no pueda
   (es quien está revisado) y los deje en `propuestas/workflows/`.
-- **El tablero con releases:** *Aplicado* → *Fusionado* y una columna
-  *Publicado*. Toca tus reglas del tablero, así que lo hacemos juntos.
+- ~~**El tablero con releases**~~ **Hecho el 27-11 con tu OK** (tafona#11).
+  Las columnas son Fusionado y Publicado; la release mueve a Publicado y pone
+  la etiqueta `publicado` (antes `aplicado`), que lanza la verificación.
+  Queda enganchado en las PR #6 y plugin#21. Falta: mirar que la regla
+  «PR merged» apunta a Fusionado, y dar `TAFONA_TOKEN` al plugin cuando
+  rotes el token.
 - **Rotar el token del tablero** (PENDIENTES §0).
 - `solo-lectura.sh` sigue en `auditoria-tool`. Su prueba va en vivo contra
   los servidores, así que no puede entrar en `Comprobar`. Moverlo pide otro
