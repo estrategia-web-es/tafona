@@ -1,0 +1,94 @@
+# TAFONA · publicado — when a release goes out, its issues move to «Publicado».
+#
+# Called as the LAST job of each project's publish flow, once the release is
+# live: plantilla/publicar.yml (a site: the child theme copied to the server)
+# and the plugin's publicar.yml (WordPress.org). It looks for the PRs merged
+# between the previous release tag and this one, takes their «Refs #n», and on
+# each OPEN issue: a comment with the release, the label «publicado» and the
+# board card to «Publicado». The label starts the VERIFY stage (trabajar.yml).
+#
+# Why the release and not the merge (David, 27-11-2026): merged is not live.
+# The old column «Aplicado» moved on merge and said «in production» when it
+# was not. Now: merge → «Fusionado» (board's built-in rule), release →
+# «Publicado» (this), verified → issue closed → «Verificado» (built-in rule).
+#
+# How to maintain:
+#   - It needs TAFONA_TOKEN. A label put with GITHUB_TOKEN starts no workflow,
+#     so without it the issues get the label but nobody verifies them: the run
+#     says so with a warning, it does not fail.
+#   - The range is «previous tag..this tag». The FIRST release of a repo has
+#     no previous tag and takes the whole history: only OPEN issues are
+#     touched, so the closed ones of the past are left alone.
+#   - An issue that a PR mentions with «Closes» is also taken (the reviewer
+#     changes them to «Refs», but an old PR may still have one); it is already
+#     closed by the merge, so it is skipped like any closed issue.
+#   - The trap: «gh pr list» gives the merge commit of each PR; a PR merged
+#     with «rebase» has as merge commit the LAST of its rebased commits, which
+#     is in the range too. If a PR is ever missed, look there first.
+name: Tafona · publicado
+
+on:
+  workflow_call:
+    inputs:
+      version: { type: string, required: true }   # the release tag, e.g. v2.17.0
+    secrets:
+      TAFONA_TOKEN: { required: false }
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  publicado:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Las issues de esta release, a Publicado
+        env:
+          ETIQUETA: ${{ inputs.version }}
+          GH_TOKEN: ${{ secrets.TAFONA_TOKEN || secrets.GITHUB_TOKEN }}
+          HAY_TABLERO: ${{ secrets.TAFONA_TOKEN != '' }}
+        run: |
+          set -euo pipefail
+          R=$GITHUB_REPOSITORY
+          O=estrategia-web-es
+          git rev-parse -q --verify "refs/tags/$ETIQUETA" >/dev/null || { echo "::error::no existe la etiqueta $ETIQUETA"; exit 1; }
+          ANTERIOR=$(git describe --tags --abbrev=0 "$ETIQUETA^" 2>/dev/null || true)
+          if [ -n "$ANTERIOR" ]; then RANGO="$ANTERIOR..$ETIQUETA"; else RANGO="$ETIQUETA"; fi
+          echo "release $ETIQUETA, desde ${ANTERIOR:-el principio}"
+          git rev-list "$RANGO" > /tmp/commits
+
+          gh pr list -R "$R" --state merged --limit 300 --json number,body,mergeCommit > /tmp/prs.json
+          jq -r --rawfile c /tmp/commits '($c | split("\n")) as $cs
+            | .[] | select(.mergeCommit.oid as $o | any($cs[]; . == $o)) | .body // ""' /tmp/prs.json \
+            | { grep -oiE '(refs|closes|fixes|resolves)[[:space:]]+#[0-9]+' || true; } \
+            | grep -oE '[0-9]+' | sort -un > /tmp/issues || true
+          echo "issues citadas: $(tr '\n' ' ' < /tmp/issues)"
+
+          gh label create publicado -R "$R" --color 1d76db --description "Tafona: salió con una release, verifícalo" --force >/dev/null
+          if [ "$HAY_TABLERO" = true ]; then
+            P=$(gh project view 1 --owner $O --format json -q .id)
+            CAMPOS=$(gh project field-list 1 --owner $O --format json)
+            F=$(jq -r '.fields[] | select(.name=="Status") | .id' <<< "$CAMPOS")
+            OP=$(jq -r '.fields[] | select(.name=="Status") | .options[] | select(.name=="Publicado") | .id' <<< "$CAMPOS")
+          else
+            echo "::warning::sin TAFONA_TOKEN: las issues llevarán la etiqueta, pero no se verificarán solas ni se moverá el tablero"
+          fi
+
+          while read -r n; do
+            [ -n "$n" ] || continue
+            estado=$(gh issue view "$n" -R "$R" --json state -q .state 2>/dev/null || echo "no es una issue")
+            if [ "$estado" != OPEN ]; then echo "#$n: $estado, se deja"; continue; fi
+            # The comment first: the verify stage reads which release it was.
+            gh issue comment "$n" -R "$R" --body "Publicado con la release [$ETIQUETA](https://github.com/$R/releases/tag/$ETIQUETA). Tafona lo verifica ahora." >/dev/null
+            gh issue edit "$n" -R "$R" --add-label publicado >/dev/null
+            if [ "$HAY_TABLERO" = true ]; then
+              ITEM=$(gh project item-add 1 --owner $O --url "https://github.com/$R/issues/$n" --format json -q .id)
+              gh project item-edit --id "$ITEM" --project-id "$P" --field-id "$F" --single-select-option-id "$OP" >/dev/null
+            fi
+            echo "#$n → Publicado"
+          done < /tmp/issues

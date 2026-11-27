@@ -88,8 +88,8 @@ Contestar en la issue **es** la decisión: el proceso la retoma solo.
   proyecto.
 
 **Las etiquetas:** `claude` (hazlo), `decide` (decide la persona asignada),
-`rutina` (la revisora no ve nada que decidir), `aplicado` (está en
-producción: verifícalo), y las de tipo `codigo`, `contenido`, `configuracion`.
+`rutina` (la revisora no ve nada que decidir), `publicado` (salió con una
+release: verifícalo; hasta el 27-11-2026 se llamaba `aplicado`), y las de tipo `codigo`, `contenido`, `configuracion`.
 
 **Empezar son dos pasos:** se escribe la issue y se le pone la etiqueta
 `claude`. Abrirla sola no arranca nada, a propósito: el trabajo empieza

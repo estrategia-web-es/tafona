@@ -44,7 +44,8 @@ causa y abrir las issues en la bandeja.
   deja) y una orden nueva del guardián para las cabeceras.
 - **Manual:** una pasada corta de Claude con el «cómo se comprueba» de la
   issue, el visor y `ssh prod`; si está bien, la cierra como verificada.
-- Se lanza al pasar a «Aplicado». La pasada del lunes sigue de red.
+- Se lanza con la etiqueta `publicado`, que pone la release. La pasada del
+  lunes sigue de red.
 
 ## 5. Aplicar con aprobación
 **Fecha:** 26-11-2026
@@ -58,15 +59,18 @@ el 26-11-2026 con la llave del «hola»).
 
 Una regla: fusionar acumula, la release publica (OK de Juan o David).
 - Issue «Publicar vX» con `claude` → PR de versión (número, changelog con las
-  PR desde la anterior, comprobaciones) → release → publicar → `aplicado` en
+  PR desde la anterior, comprobaciones) → release → publicar → `publicado` en
   las issues de esa versión → verificar.
 - Plugin: `10up/action-wordpress-plugin-deploy` al SVN; credenciales SVN como
   secretos (decidir de quién). Tema padre: comprobar si un autor puede
   publicar un tema por SVN o solo por el formulario de la web.
 - Webs: el desplegador de tafona#2 pasa a dispararse con la release, no con
   el push a `main`.
-- Tablero: «Aplicado» pasa a «Fusionado» (la regla de PR merged apunta ahí),
-  y una columna nueva «Publicado» que pone Tafona al publicar.
+- ~~Tablero: «Aplicado» pasa a «Fusionado» y una columna nueva «Publicado».~~
+  Hecho el 27-11-2026: columnas cambiadas y
+  [publicado.yml](.github/workflows/publicado.yml). Falta engancharlo en los
+  dos flujos de publicar (tafona#6 y plugin#21) y que el plugin tenga
+  `TAFONA_TOKEN`; sin él no se verifica solo.
 
 ## 7. Tareas nocturnas: fuentes de issues
 **Fecha:** 26-11-2026
