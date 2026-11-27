@@ -1,0 +1,83 @@
+# TAFONA · nocturna de errores — de madrugada, Claude mira lo que cambió en un
+# repo en las últimas 24 h y abre una issue por cada FALLO PROBABLE.
+# Nunca abre PR ni arregla nada, y sin la etiqueta «claude»: lo que se hace lo
+# decide una persona (docs/fuentes.md).
+#
+# DESTINO: .github/workflows/nocturna-errores.yml (está aquí, en plantilla/,
+# porque la app de GitHub de Claude no puede escribir en .github/workflows:
+# una persona lo mueve con `git mv`).
+#
+# Se llama desde el tafona.yml de cada proyecto (ver plantilla/tafona.yml).
+# Sin commits en main en 24 h, no gasta nada: ni arranca a Claude.
+name: Tafona · nocturna de errores
+
+on:
+  workflow_call:
+    inputs:
+      # Vacío = el repo que la llama. Otro repo necesita el secreto TAFONA_TOKEN.
+      repo: { type: string, default: "" }
+      horas: { type: number, default: 24 }
+      maximo: { type: number, default: 3, description: "issues por noche, como mucho" }
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: { required: true }
+      TAFONA_TOKEN: { required: false }
+
+permissions:
+  contents: read
+  issues: write
+  id-token: write
+
+jobs:
+  errores:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      REPO: ${{ inputs.repo || github.repository }}
+      GH_TOKEN: ${{ secrets.TAFONA_TOKEN || secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.repo || github.repository }}
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.TAFONA_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: ¿Qué cambió?
+        id: cambios
+        env:
+          HORAS: ${{ inputs.horas }}
+        run: |
+          n=$(git log origin/main --since="$HORAS hours ago" --no-merges --format=%H | wc -l)
+          echo "commits=$n" >> "$GITHUB_OUTPUT"
+          echo "Commits de main en las últimas $HORAS h: $n"
+          [ "$n" -gt 0 ] || echo "Nada que mirar: no se gasta nada."
+
+      - name: Etiqueta nocturna
+        if: steps.cambios.outputs.commits != '0'
+        # A block scalar: «Tafona: la…» in a plain one is «key: value» to YAML,
+        # and the whole file failed to load (caught before merging, 26-11-2026).
+        run: |
+          gh label create nocturna -R "$REPO" --color fbca04 --description "Tafona: la abrió una tarea nocturna" --force >/dev/null
+
+      - uses: anthropics/claude-code-action@v1
+        if: steps.cambios.outputs.commits != '0'
+        env:
+          HORAS: ${{ inputs.horas }}
+          MAXIMO: ${{ inputs.maximo }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.TAFONA_TOKEN || secrets.GITHUB_TOKEN }}
+          prompt: |
+            Eres la tarea nocturna de ERRORES de TAFONA (Estrategia Web), sobre el repo ${{ inputs.repo || github.repository }}. Solo DETECTAS y DESCRIBES: nunca abres PR, nunca editas ni arreglas nada.
+
+            QUÉ HACER
+            1. Mira lo que entró en main en las últimas ${{ inputs.horas }} h: `git log origin/main --since="${{ inputs.horas }} hours ago" --no-merges -p`. Lee también el código de alrededor de cada cambio, no solo el diff.
+            2. Busca FALLOS PROBABLES de verdad: lógica rota, casos que no se tratan (vacío, null, idioma, permisos), seguridad (escapado, nonces, capacidades, SQL), PHP que fallará en producción (versión, funciones que no existen, errores de sintaxis). NO busques estilo, nombres ni preferencias. Si dudas de que sea un fallo, no lo abras.
+            3. Antes de abrir nada, mira lo abierto: `gh issue list -R ${{ inputs.repo || github.repository }} --label nocturna --state open`. No repitas una causa que ya está.
+            4. Abre como MÁXIMO ${{ inputs.maximo }} issues, una por causa (no por síntoma), con `gh issue create -R ${{ inputs.repo || github.repository }} --label nocturna`. NUNCA con la etiqueta `claude`. Cada una lleva: qué falla y dónde (archivo:línea y commit), por qué es probable que falle, y una sección «Cómo se verifica» (qué mirar y dónde para darla por buena).
+            5. Si no encuentras nada, no abras nada. El silencio es un resultado válido.
+
+            Si algo te impide hacer bien el trabajo (un permiso, una herramienta), abre una issue SIN `claude` con etiqueta `tafona` y título «Tafona: …» en estrategia-web-es/tafona, tras mirar con `gh issue list -R estrategia-web-es/tafona --label tafona --state open` que no exista.
+          claude_args: |
+            --allowedTools "Bash(git log:*),Bash(git show:*),Bash(git diff:*),Bash(git blame:*),Bash(php -l:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue comment:*)"
+            --max-turns 40
