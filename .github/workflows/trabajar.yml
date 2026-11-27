@@ -7,7 +7,9 @@
 #                                          (just opening an issue does nothing, on purpose)
 #   a person who decides comments on an item labelled «decide»  → RESUME with the answer
 #   a comment that mentions @claude      → do what the comment asks
-#   issue labelled «aplicado»            → VERIFY against the live site, close or send back
+#   issue labelled «publicado»           → VERIFY against the live site, close or send back
+#                                          (the label is put by publicado.yml when a release
+#                                          goes out; it was «aplicado» until 27-11-2026)
 #
 # The standing instructions (INSTRUCCIONES below) go to Claude every time:
 # they are what used to live only in the audit's issues.
@@ -67,7 +69,7 @@ jobs:
           # puts the label «claude» (David, 26-11-2026: «me gusta que haya que
           # hacer alguna acción para que empiece»). Two steps: write it, ask for it.
           if [ "$EVENTO" = issues ] && [ "$ACCION" = labeled ] && [ "$ETIQUETA" = claude ]; then t=arreglar
-          elif [ "$EVENTO" = issues ] && [ "$ACCION" = labeled ] && [ "$ETIQUETA" = aplicado ]; then t=verificar
+          elif [ "$EVENTO" = issues ] && [ "$ACCION" = labeled ] && [ "$ETIQUETA" = publicado ]; then t=verificar
           elif [ "$EVENTO" = issue_comment ] && [ "$ES_BOT" != true ]; then
             if grep -qi '@claude' <<< "$CUERPO"; then t=comentario
             elif grep -qw -- "$AUTOR" <<< "$DECIDEN" && grep -qwE 'decide|decide-david' <<< "$ETIQUETAS"; then t=retomar
@@ -97,7 +99,7 @@ jobs:
           PROD_USER: ${{ inputs.prod_user }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for e in "claude|d97757|Tafona: hazlo" "decide|d93f0b|Tafona: decide una persona (la asignada)" "aplicado|1d76db|Tafona: en producción, verifícalo" "tafona|5319e7|Tafona: un fallo del proceso, no del proyecto" "codigo|c5def5|Tafona: se arregla en el código" "contenido|c5def5|Tafona: se arregla en el contenido" "configuracion|c5def5|Tafona: se arregla en la configuración"; do
+          for e in "claude|d97757|Tafona: hazlo" "decide|d93f0b|Tafona: decide una persona (la asignada)" "publicado|1d76db|Tafona: salió con una release, verifícalo" "tafona|5319e7|Tafona: un fallo del proceso, no del proyecto" "codigo|c5def5|Tafona: se arregla en el código" "contenido|c5def5|Tafona: se arregla en el contenido" "configuracion|c5def5|Tafona: se arregla en la configuración"; do
             IFS='|' read -r n c d <<< "$e"; gh label create "$n" -R "$GITHUB_REPOSITORY" --color "$c" --description "$d" --force >/dev/null
           done
           if [ -n "$PROD_HOST" ]; then
@@ -178,8 +180,11 @@ jobs:
             arreglar) echo "TAREA: la issue #$N. Primero CLASIFÍCALA: pon UNA etiqueta de tipo (gh issue edit $N --add-label codigo|contenido|configuracion). Después: si se puede arreglar sin una decisión previa, haz la PR. Si hace falta un dato o una decisión que solo tiene una persona y no puedes ni proponerlo, pon la etiqueta decide, asígnala (David: dpereztomas para datos de cliente, textos al público, lo legal, lo que cuesta; Juan: SoporteEstrategiaWeb para lo técnico del plugin o del tema compartidos) y escribe UNA pregunta concreta." ;;
             retomar) echo "TAREA: $AUTOR, que decide, ha contestado en #$N. Lee todo el hilo, toma su respuesta como la decisión y sigue: actualiza la PR (o ábrela) con lo que ha dicho y quita la etiqueta decide si ya no hace falta. No vuelvas a preguntar lo mismo; si su respuesta no basta, una sola pregunta más, concreta." ;;
             comentario) echo "TAREA: $AUTOR te ha escrito en #$N. Haz lo que pide su último comentario, dentro de las reglas fijas." ;;
-            verificar) echo "TAREA: VERIFICA la issue #$N, que ya está aplicada en producción. Busca su PR (la que dice Refs o Closes #$N) y su sección «Cómo se comprueba»; compruébalo en la web real ($WEB) con .tafona/ver.sh y ssh prod. Si está bien: comenta en #$N qué has mirado y lo que has visto, y ciérrala (gh issue close $N). Si no: comenta qué falla, quita la etiqueta aplicado, pon decide y asígnala a dpereztomas." ;;
+            verificar)
+              echo "TAREA: VERIFICA la issue #$N, que ya salió con una release (el comentario de la etiqueta «publicado» dice cuál). Busca su PR (la que dice Refs o Closes #$N) y su sección «Cómo se comprueba»; compruébalo en la web real ($WEB) con .tafona/ver.sh y ssh prod. Si está bien: comenta en #$N qué has mirado y lo que has visto, y ciérrala (gh issue close $N). Si no: comenta qué falla, quita la etiqueta publicado, pon decide y asígnala a dpereztomas."
+              [ -n "$WEB" ] || echo "Este repo es un plugin o un tema: «la web real» es WordPress.org. Comprueba con WebFetch a https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&request[slug]=<slug> (o themes/info para un tema; el slug sale del readme) que la versión publicada es la de la release, y con git show <etiqueta> que el cambio está en ese código." ;;
           esac
+          [ -n "$WEB" ] || echo "ESTE REPO NO TIENE WEB: no hay ssh prod ni .tafona/ver.sh contra producción; no los intentes. Los flujos (.github/workflows/) no los puedes escribir: déjalos en propuestas/workflows/ y dilo en la PR."
           echo 'FIN_PROMPT'
           } >> "$GITHUB_OUTPUT"
 
@@ -191,7 +196,7 @@ jobs:
           track_progress: true
           prompt: ${{ steps.prompt.outputs.texto }}
           claude_args: |
-            --allowedTools "Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr edit:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(gh issue close:*),Bash(php -l:*),Bash(bash -n:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(ssh prod:*),Bash(.tafona/ver.sh:*),Bash(npm ci:*),Bash(npm test:*),Bash(node --check:*),Bash(gh issue create:*),Bash(gh issue list:*),WebSearch,WebFetch"
+            --allowedTools "Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr edit:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(gh issue close:*),Bash(php -l:*),Bash(bash -n:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(ssh prod:*),Bash(.tafona/ver.sh:*),Bash(npm ci:*),Bash(npm test:*),Bash(node --check:*),Bash(gh issue create:*),Bash(gh issue list:*),WebSearch,WebFetch"
             --max-turns 80
 
       # The reviewer, on the PR this run opened or updated. A PR made with

@@ -23,3 +23,12 @@ tacha y se dice qué la sustituye.
 | La auditoría, las **tareas nocturnas** y las personas son **fuentes**: abren issues, nunca PR | Encajar las piezas nuevas sin tocar el motor | pendiente: [fuentes.md](fuentes.md) |
 | Tafona será **pública** y vivirá en `estrategia-web-es`, como motor para otras organizaciones | Copiarla por organización repite los arreglos N veces | pendiente: PENDIENTES.md §8 |
 | Copilot de GitHub como alternativa: **aparcado** | Probarlo con datos (la misma issue a los dos) cuando el ciclo funcione | — |
+
+## 27-11-2026 (David)
+
+| Decisión | Por qué | Dónde se aplica |
+|---|---|---|
+| Tablero: *Aplicado* pasa a **Fusionado** y nace **Publicado** | Con releases, fusionado no es publicado | el tablero ([publicar](publicar.md#el-tablero-con-releases-hecho-el-27-11-2026-con-ok-de-david)) |
+| **Tocar a mano es una incidencia:** cada cambio que hace una persona o Claude desde un PC (mover una tarjeta, reponer una etiqueta, editar una PR) se abre como issue `tafona` | «Quiere decir que algo no ha funcionado» | tafona#14 a #18 fueron las primeras |
+| **El trabajo lo hace Claude en GitHub**, lanzado con la etiqueta `claude`, no una sesión local | «Si puede ser que las ejecute Claude desde GitHub» | todo |
+| **La release mueve a Publicado** y pone la etiqueta `publicado` (antes `aplicado`), que lanza la verificación | A mano se olvida; al fusionar era mentira | `publicado.yml`, llamado al final de cada flujo de publicar |

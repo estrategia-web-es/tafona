@@ -73,6 +73,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           allowed_bots: "github-actions"
           prompt: |
+            ${{ inputs.prod_host == '' && 'ESTE REPO NO TIENE WEB: no hay `ssh prod` ni producción que mirar; no lo intentes. El YAML de los flujos y las pruebas de los guardianes los comprueba el flujo «Comprobar» de la PR (míralo con gh pr checks), no tú.' || '' }}
             Eres la REVISORA de Tafona. Revisa la PR #${{ inputs.pr }} de este repo. No la arreglas: compruebas, clasificas y das un veredicto. El código de la PR está en la carpeta pr/ (léelo ahí); la issue que arregla es la que cita «Refs #n» (gh issue view). Si la PR dice «Closes», «Fixes» o «Resolves» #n, es un fallo: esas palabras cierran la issue al fusionar, antes de verificarla. Dilo en el veredicto y corrígelo tú en la descripción (gh pr edit --body) cambiándolo por «Refs».
 
             1. COMPRUEBA
@@ -101,7 +102,7 @@ jobs:
 
             MODO SOMBRA (desde el 26-11-2026): no apruebas ni fusionas nada.
           claude_args: |
-            --allowedTools "Read,Glob,Grep,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr edit:*),Bash(gh issue view:*),Bash(php -l:*),Bash(bash -n:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(ssh prod:*),Bash(node --check:*),Bash(gh issue create:*),Bash(gh issue list:*),WebSearch"
+            --allowedTools "Read,Glob,Grep,Bash(gh pr view:*),Bash(gh pr checks:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr edit:*),Bash(gh issue view:*),Bash(php -l:*),Bash(bash -n:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(ssh prod:*),Bash(node --check:*),Bash(gh issue create:*),Bash(gh issue list:*),WebSearch"
             --max-turns 40
 
       # The PR is the card while it waits for a person: on the board with

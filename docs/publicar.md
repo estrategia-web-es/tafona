@@ -37,19 +37,27 @@ de GitHub, y crearla es el OK de Juan o de David (solo ellos pueden).
 | Cada web (`estrategiaweb-es`, `gastronomicament-cat`…) | su servidor: el directorio de su tema hijo | el desplegador de Tafona (tafona#2: `publicar.yml` y `servidor/aplicar.sh`) | en PR |
 | Herramientas (`*-tool`) | su release (y `npm link` donde se usen) | — | pendiente |
 
-## El tablero con releases (pendiente de David: toca sus reglas)
+## El tablero con releases (hecho el 27-11-2026, con OK de David)
 
-Hoy «Pull request merged» lleva a *Aplicado*, y con releases fusionar ya no es
-aplicar. Propuesta:
+    Triaje → PR abierta → Espera tu OK → Fusionado → Publicado → Verificado
 
-- *Aplicado* → **Fusionado** (esperando release). La regla «Pull request
-  merged» sigue apuntando ahí.
-- Columna nueva **Publicado**, que pone Tafona al publicar.
-- *Verificado*, como hoy.
+| Columna | Quién la pone |
+|---|---|
+| **Fusionado** (en `main`, todavía no en la web) | la regla del tablero «Pull request merged» |
+| **Publicado** (salió con una release; falta verificarlo) | `publicado.yml`, al acabar el flujo de publicar |
+| **Verificado** | la regla «Item closed», cuando la etapa de verificar cierra la issue |
 
-Cambiar las opciones de la columna desde la API puede dejar sin valor las
-tarjetas y descolgar las reglas integradas (apuntan a la opción), así que se
-hace con David delante.
+- *Fusionado* es la antigua *Aplicado* renombrada: conserva su id, así que la
+  regla «Pull request merged» y las tarjetas que tenía siguen valiendo.
+- **No se mueve al fusionar** porque fusionado no es publicado. Era el error
+  de *Aplicado*.
+- **No se mueve a mano** porque se olvida.
+
+**La trampa al cambiar las columnas:** por la API se cambian con
+`updateProjectV2Field`, que SUSTITUYE la lista entera de opciones. Si una
+opción va sin su `id`, se crea de nuevo, y las tarjetas y las reglas que
+apuntaban a ella se quedan sin columna. Se mandan todas con su `id` y solo la
+nueva sin él. Comprobado el 27-11-2026 contando las tarjetas antes y después.
 
 ## Credenciales
 

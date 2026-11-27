@@ -1,7 +1,7 @@
 # Tafona works on itself: an issue here labelled «claude» (a process failure
-# that a run opened, or an improvement) becomes a PR to Tafona. No site, so
-# no prod_host and no read-only key. The reviewer does not run here yet: it
-# reviews site changes against production, and this repo has none.
+# that a run opened, or an improvement) becomes a PR to Tafona, and the
+# reviewer gives its verdict on it. No site, so no prod_host and no
+# read-only key.
 name: Tafona
 
 on:
@@ -9,9 +9,26 @@ on:
     types: [opened, labeled]
   issue_comment:
     types: [created]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR que revisar"
+        required: true
 
 jobs:
   trabajar:
+    if: github.event_name == 'issues' || github.event_name == 'issue_comment'
     permissions: { contents: write, pull-requests: write, issues: write, id-token: write, actions: write }
     uses: ./.github/workflows/trabajar.yml
+    secrets: inherit
+
+  # The reviewer too (added 26-11-2026: Tafona's own PRs had no verdict).
+  revisar:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && !github.event.pull_request.draft && github.event.pull_request.user.type != 'Bot')
+    permissions: { contents: read, pull-requests: write, issues: write, id-token: write }
+    uses: ./.github/workflows/revisar.yml
+    with:
+      pr: ${{ inputs.pr || format('{0}', github.event.pull_request.number) }}
     secrets: inherit

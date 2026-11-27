@@ -22,6 +22,10 @@ on:
       pr:
         description: "PR que revisar"
         required: true
+  # Nocturna de errores (docs/fuentes.md). Descomenta estas dos líneas para
+  # activarla en este proyecto, y el job «nocturna» de abajo.
+  # schedule:
+  #   - cron: "30 3 * * *"   # 03:30 UTC
 
 jobs:
   trabajar:
@@ -56,3 +60,9 @@ jobs:
       prod_user: CAMBIAR
       tema_repo: CAMBIAR          # p. ej. wp-content/themes/mi-tema-hijo
     secrets: inherit
+
+  # nocturna:
+  #   if: github.event_name == 'schedule'
+  #   permissions: { contents: read, issues: write, id-token: write }
+  #   uses: estrategia-web-es/tafona/.github/workflows/nocturna-errores.yml@main
+  #   secrets: inherit
